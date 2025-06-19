@@ -16,5 +16,4 @@ class HeartRateSensor(BaseSensor):
         return {
             "value": heart_rate,
             "unit": "bpm",
-            "status": "high" if heart_rate > 100 else "normal"
         }

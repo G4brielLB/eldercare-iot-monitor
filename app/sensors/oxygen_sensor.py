@@ -15,20 +15,12 @@ class OxygenSensor(BaseSensor):
         
         if rand < 0.7:  # 70% - normal
             oxygen = random.randint(95, 100)
-            status = "normal"
         elif rand < 0.9:  # 20% - baixo
             oxygen = random.randint(90, 94)
-            status = "low"
         else:  # 10% - crítico
             oxygen = random.randint(85, 89)
-            status = "critical"
-            
-        # Determina alerta
-        alert = "alert" if oxygen < 95 else "normal"
             
         return {
             "value": oxygen,
-            "unit": "percentage",
-            "status": status,
-            "alert_level": alert
+            "unit": "%",
         }

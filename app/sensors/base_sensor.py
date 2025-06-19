@@ -31,7 +31,6 @@ class BaseSensor(ABC):
         sensor_data = self.generate_data()
         
         return {
-            "patient_id": self.patient_id,
             "sensor_type": self.sensor_type,
             "timestamp": time.time(),
             **sensor_data  # Expande os dados específicos do sensor

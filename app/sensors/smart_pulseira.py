@@ -138,8 +138,7 @@ class SmartPulseira:
                 # Log resumido
                 value = reading.get('value', 'N/A')
                 unit = reading.get('unit', '')
-                status = reading.get('status', reading.get('level', 'unknown'))
-                print(f"   {sensor.sensor_type}: {value} {unit} ({status})")
+                print(f"   {sensor.sensor_type}: {value} {unit}")
                 
             except Exception as e:
                 print(f"❌ Erro no sensor {sensor.sensor_type}: {e}")
@@ -169,9 +168,8 @@ class SmartPulseira:
         
         for alert in alerts:
             alert_type = alert.get('type', 'UNKNOWN')
-            severity = alert.get('severity', 'UNKNOWN')
             message = alert.get('message', 'Sem detalhes')
-            print(f"   🚨 {alert_type} ({severity}): {message}")
+            print(f"   🚨 {alert_type}: {message}")
         
         # Envia emergência via MQTT
         success = self.publisher.send_emergency(emergency_data)
@@ -270,55 +268,3 @@ class SmartPulseira:
             'sensors_count': len(self.sensors)
         }
 
-# Funções de teste e uso
-def test_single_patient(patient_id: str = "PAT001", duration: int = 120):
-    """Testa uma pulseira individual"""
-    print(f"🧪 === TESTE PULSEIRA INDIVIDUAL - {patient_id} ===")
-    
-    pulseira = SmartPulseira(patient_id)
-    pulseira.start_monitoring(duration)
-
-def simulate_multiple_patients(patient_ids: List[str], duration: int = 180):
-    """Simula múltiplas pulseiras simultaneamente"""
-    print(f"🧪 === SIMULAÇÃO MÚLTIPLAS PULSEIRAS ===")
-    print(f"👥 Pacientes: {', '.join(patient_ids)}")
-    
-    threads = []
-    pulseiras = []
-    
-    # Inicia cada pulseira em thread separada
-    for patient_id in patient_ids:
-        pulseira = SmartPulseira(patient_id)
-        pulseiras.append(pulseira)
-        
-        thread = threading.Thread(
-            target=pulseira.start_monitoring,
-            args=(duration,)
-        )
-        thread.start()
-        threads.append(thread)
-        
-        # Pequeno delay entre inicializações
-        time.sleep(2)
-    
-    # Aguarda todas finalizarem
-    for thread in threads:
-        thread.join()
-    
-    print("🏁 Simulação de múltiplas pulseiras finalizada!")
-
-if __name__ == "__main__":
-    # Teste individual
-    print("Escolha o tipo de teste:")
-    print("1 - Pulseira individual (PAT001, 2 minutos)")
-    print("2 - Múltiplas pulseiras (PAT001, PAT002, 3 minutos)")
-    
-    choice = input("Digite sua escolha (1 ou 2): ").strip()
-    
-    if choice == "1":
-        test_single_patient("PAT001", 120)
-    elif choice == "2":
-        simulate_multiple_patients(["PAT001", "PAT002"], 180)
-    else:
-        print("Opção inválida! Executando teste individual...")
-        test_single_patient("PAT001", 60)

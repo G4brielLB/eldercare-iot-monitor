@@ -71,15 +71,8 @@ class PulseiraPublisher:
         
         topic = f"eldercare/emergency/{self.patient_id}"
         
-        enriched_data = {
-            **emergency_data,
-            'message_type': 'EMERGENCY',
-            'sent_timestamp': time.time(),
-            'device_id': f"pulseira_{self.patient_id}"
-        }
-        
         try:
-            result = self.client.publish(topic, json.dumps(enriched_data, indent=2), qos=2)
+            result = self.client.publish(topic, json.dumps(emergency_data, indent=2), qos=2)
             
             if result.rc == mqtt.MQTT_ERR_SUCCESS:
                 self.stats['emergency_sent'] += 1
@@ -87,7 +80,7 @@ class PulseiraPublisher:
                 print(f"🚨 EMERGÊNCIA enviada: {alerts_count} alerta(s)")
                 return True
             else:
-                self._handle_failure('emergency', topic, enriched_data)
+                self._handle_failure('emergency', topic, emergency_data)
                 return False
                 
         except Exception as e:
@@ -104,15 +97,8 @@ class PulseiraPublisher:
         
         topic = f"eldercare/summary/{self.patient_id}"
         
-        enriched_data = {
-            **summary_data,
-            'message_type': 'SUMMARY',
-            'sent_timestamp': time.time(),
-            'device_id': f"pulseira_{self.patient_id}"
-        }
-        
         try:
-            result = self.client.publish(topic, json.dumps(enriched_data, indent=2), qos=1)
+            result = self.client.publish(topic, json.dumps(summary_data, indent=2), qos=1)
             
             if result.rc == mqtt.MQTT_ERR_SUCCESS:
                 self.stats['summary_sent'] += 1
@@ -121,7 +107,7 @@ class PulseiraPublisher:
                 print(f"📊 RESUMO enviado: {readings} leituras, status: {health}")
                 return True
             else:
-                self._handle_failure('summary', topic, enriched_data)
+                self._handle_failure('summary', topic, summary_data)
                 return False
                 
         except Exception as e:

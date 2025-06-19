@@ -73,7 +73,6 @@ class EdgeProcessor:
         if fall_data and fall_data.get('fall_detected'):
             critical_alerts.append({
                 'type': 'FALL_DETECTED',
-                'severity': 'CRITICAL',
                 'message': 'Queda detectada!'
             })
         
@@ -82,7 +81,6 @@ class EdgeProcessor:
         if oxygen_data and oxygen_data.get('value', 100) < 90:
             critical_alerts.append({
                 'type': 'LOW_OXYGEN',
-                'severity': 'CRITICAL',
                 'value': oxygen_data.get('value'),
                 'message': f"Oxigenação crítica: {oxygen_data.get('value')}%"
             })
@@ -91,47 +89,54 @@ class EdgeProcessor:
         temp_data = sensor_data.get('temperature')
         if temp_data:
             temp_value = temp_data.get('value', 36.5)
-            if temp_value < 35.0 or temp_value > 39.5:
+            if temp_value < 35.0 or temp_value > 39.0:
                 critical_alerts.append({
                     'type': 'EXTREME_TEMPERATURE',
-                    'severity': 'HIGH',
                     'value': temp_value,
                     'message': f"Temperatura extrema: {temp_value}°C"
                 })
         
-        # 4. Combinação de alertas (correlação)
+        # 4. Batimento cardíaco crítico
         heart_data = sensor_data.get('heart_rate')
-        stress_data = sensor_data.get('stress_level')
-        
-        if heart_data and stress_data:
+        if heart_data:
             heart_rate = heart_data.get('value', 70)
-            stress_level = stress_data.get('value', 20)
-            
-            # Condição: batimento alto + stress muito alto = possível crise
-            if heart_rate > 110 and stress_level > 85:
+            if heart_rate < 40 or heart_rate > 120:
                 critical_alerts.append({
-                    'type': 'CARDIAC_STRESS',
-                    'severity': 'HIGH',
-                    'message': f"Batimento elevado ({heart_rate} bpm) + stress alto ({stress_level}%)"
-                })
+                'type': 'CRITICAL_HEART_RATE',
+                'value': heart_rate,
+                'message': f"Batimento cardíaco crítico: {heart_rate} bpm"
+            })
+        
+        # 5. Nível de stress crítico
+        stress_data = sensor_data.get('stress_level')
+        if stress_data:
+            stress_level = stress_data.get('value', 20)
+            if stress_level > 80:
+                critical_alerts.append({
+                'type': 'HIGH_STRESS',
+                'value': stress_level,
+                'message': f"Nível de stress crítico: {stress_level}%"
+            })
         
         # Se há alertas críticos, cria emergência
         if critical_alerts:
             self.last_emergency_time = current_time
             
+            critical_message = self._create_unified_message(
+                message_type='emergency',
+                patient_id=self.patient_id,
+                severity='critical',
+                health_status='critical',
+                statistics=readings,
+                alerts=critical_alerts,
+                context_data=self._get_recent_context()
+            )
+
             return {
                 'action': 'emergency',
-                'priority': 'CRITICAL',
+                'priority': 'critical',
                 'channel': f'eldercare/emergency/{self.patient_id}',
-                'data': {
-                    'patient_id': self.patient_id,
-                    'alert_type': 'EMERGENCY',
-                    'timestamp': current_time,
-                    'alerts': critical_alerts,
-                    'all_sensor_data': readings,
-                    'requires_immediate_attention': True,
-                    'context': self._get_recent_context()
-                }
+                'data': critical_message
             }
         
         return None
@@ -171,15 +176,19 @@ class EdgeProcessor:
         # Calcula estatísticas por sensor
         stats = self._calculate_statistics()
         
-        summary_data = {
-            'patient_id': self.patient_id,
-            'summary_type': 'normal_monitoring',
-            'period_start': self.last_summary_sent,
-            'period_end': current_time,
-            'readings_count': len(self.normal_data_buffer),
-            'statistics': stats,
-            'health_status': self._assess_overall_health(stats)
-        }
+        health_status, health_alerts = self._assess_overall_health(stats)
+        
+        summary_data = self._create_unified_message(
+            message_type='summary',
+            patient_id=self.patient_id,
+            severity='normal',
+            health_status=health_status,
+            alerts=health_alerts,
+            statistics=stats,
+            readings_count=len(self.normal_data_buffer),
+            period_start=self.normal_data_buffer[0]['timestamp'],
+            period_end=current_time
+        )
         
         # Limpa buffer e atualiza timestamp
         self.normal_data_buffer.clear()
@@ -187,10 +196,38 @@ class EdgeProcessor:
         
         return {
             'action': 'summary',
-            'priority': 'NORMAL',
+            'priority': 'normal',
             'channel': f'eldercare/summary/{self.patient_id}',
             'data': summary_data
         }
+    
+    def _create_unified_message(self, message_type: str, **kwargs) -> Dict:
+        """Centraliza criação de estrutura unificada"""
+        
+        # CAMPOS COMUNS (definidos uma vez só)
+        base_message = {
+            'message_type': message_type,
+            'timestamp': time.time(),
+            'patient_id': self.patient_id,
+            'severity': kwargs.get('severity', 'normal'),
+            'health_status': kwargs.get('health_status', 'stable'),
+            'alerts': kwargs.get('alerts', []),
+            'statistics': kwargs.get('statistics', {})
+        }
+        
+        # CAMPOS ESPECÍFICOS POR TIPO
+        if message_type == 'emergency':
+            base_message.update({
+                'context_data': kwargs.get('context_data', {})
+            })
+        elif message_type == 'summary':
+            base_message.update({
+                'readings_count': kwargs.get('readings_count', 0),
+                'period_start': kwargs.get('period_start'),
+                'period_end': kwargs.get('period_end')
+            })
+        
+        return base_message
     
     def _calculate_statistics(self) -> Dict:
         """Calcula estatísticas dos dados no buffer"""
@@ -222,40 +259,136 @@ class EdgeProcessor:
         
         return stats
     
-    def _assess_overall_health(self, stats: Dict) -> str:
-        """Avalia estado geral de saúde baseado nas estatísticas"""
+    def _assess_overall_health(self, stats: Dict) -> tuple[str, List[Dict]]:
+        """
+        Avalia estado geral de saúde baseado nas estatísticas
+        
+        Returns:
+            tuple: (status_geral, lista_de_alertas)
+        """
         concerns = []
+        criticals = []
+        alerts = []
         
         # Analisa cada sensor
         if 'heart_rate' in stats:
             avg_hr = stats['heart_rate']['avg']
-            if avg_hr > 90:
+            if avg_hr > 100:
                 concerns.append('batimento_elevado')
+                alerts.append({
+                    'type': 'batimento_elevado',
+                    'sensor': 'heart_rate',
+                    'value': avg_hr,
+                    'severity': 'concern'
+                })
+                if avg_hr > 120:
+                    criticals.append('batimento_critico_alto')
+                    alerts.append({
+                        'type': 'batimento_critico_alto',
+                        'sensor': 'heart_rate',
+                        'value': avg_hr,
+                        'severity': 'critical'
+                    })
             elif avg_hr < 65:
                 concerns.append('batimento_baixo')
+                alerts.append({
+                    'type': 'batimento_baixo',
+                    'sensor': 'heart_rate',
+                    'value': avg_hr,
+                    'severity': 'concern'
+                })
+                if avg_hr < 40:
+                    criticals.append('batimento_critico_baixo')
+                    alerts.append({
+                        'type': 'batimento_critico_baixo',
+                        'sensor': 'heart_rate',
+                        'value': avg_hr,
+                        'severity': 'critical'
+                    })
         
         if 'stress_level' in stats:
             avg_stress = stats['stress_level']['avg']
             if avg_stress > 60:
                 concerns.append('stress_alto')
+                alerts.append({
+                    'type': 'stress_alto',
+                    'sensor': 'stress_level',
+                    'value': avg_stress,
+                    'severity': 'concern'
+                })
+                if avg_stress > 80:
+                    criticals.append('stress_critico')
+                    alerts.append({
+                        'type': 'stress_critico',
+                        'sensor': 'stress_level',
+                        'value': avg_stress,
+                        'severity': 'critical'
+                    })
         
         if 'temperature' in stats:
             avg_temp = stats['temperature']['avg']
-            if avg_temp > 37.3:
+            if avg_temp > 37.0:
                 concerns.append('temperatura_elevada')
+                alerts.append({
+                    'type': 'temperatura_elevada',
+                    'sensor': 'temperature',
+                    'value': avg_temp,
+                    'severity': 'concern'
+                })
+                if avg_temp > 39.0:
+                    criticals.append('temperatura_critica_alta')
+                    alerts.append({
+                        'type': 'temperatura_critica_alta',
+                        'sensor': 'temperature',
+                        'value': avg_temp,
+                        'severity': 'critical'
+                    })
+            elif avg_temp < 36.0:
+                concerns.append('temperatura_baixa')
+                alerts.append({
+                    'type': 'temperatura_baixa',
+                    'sensor': 'temperature',
+                    'value': avg_temp,
+                    'severity': 'concern'
+                })
+                if avg_temp < 35.0:
+                    criticals.append('temperatura_critica_baixa')
+                    alerts.append({
+                        'type': 'temperatura_critica_baixa',
+                        'sensor': 'temperature',
+                        'value': avg_temp,
+                        'severity': 'critical'
+                    })
         
         if 'oxygen_saturation' in stats:
             avg_oxygen = stats['oxygen_saturation']['avg']
             if avg_oxygen < 96:
                 concerns.append('oxigenacao_baixa')
+                alerts.append({
+                    'type': 'oxigenacao_baixa',
+                    'sensor': 'oxygen_saturation',
+                    'value': avg_oxygen,
+                    'severity': 'concern'
+                })
+                if avg_oxygen < 90:
+                    criticals.append('oxigenacao_critica_baixa')
+                    alerts.append({
+                        'type': 'oxigenacao_critica_baixa',
+                        'sensor': 'oxygen_saturation',
+                        'value': avg_oxygen,
+                        'severity': 'critical'
+                    })
         
         # Determina status geral
-        if not concerns:
-            return 'estavel'
-        elif len(concerns) == 1:
-            return 'atencao'
+        if criticals:
+            status = 'critical'
+        elif concerns:
+            status = 'alert'
         else:
-            return 'preocupante'
+            status = 'stable'
+        
+        return status, alerts
+
     
     def _get_recent_context(self) -> Dict:
         """Retorna contexto dos dados recentes para emergências"""
@@ -270,6 +403,7 @@ class EdgeProcessor:
             'buffer_size': len(self.normal_data_buffer),
             'trend': 'Dados estavam normais antes da emergência'
         }
+    
     
     def get_status(self) -> Dict:
         """Retorna status atual do processador"""

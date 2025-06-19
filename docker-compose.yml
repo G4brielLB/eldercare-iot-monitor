@@ -1,23 +1,17 @@
 services:
   mosquitto:
-    image: eclipse-mosquitto:2.0
+    image: eclipse-mosquitto:latest
     container_name: eldercare-mosquitto
     ports:
       - "1883:1883"
       - "9001:9001"
-    command: mosquitto -c /mosquitto-no-auth.conf
-    restart: unless-stopped
-
-  mongodb:
-    image: mongo:6.0
-    container_name: eldercare-mongodb
-    ports:
-      - "27017:27017"
-    environment:
-      MONGO_INITDB_DATABASE: eldercare
+    command: mosquitto -c /mosquitto/config/mosquitto.conf
     volumes:
-      - mongo_data:/data/db
+      - ./app/config/mosquitto.conf:/mosquitto/config/mosquitto.conf
     restart: unless-stopped
+    networks:
+      - eldercare-network
 
-volumes:
-  mongo_data:
+networks:
+  eldercare-network:
+    driver: bridge
