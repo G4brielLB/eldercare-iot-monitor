@@ -12,6 +12,19 @@ services:
     networks:
       - eldercare-network
 
+  api:
+    build: .
+    container_name: eldercare-api
+    command: uvicorn server:app --host 0.0.0.0 --port 8000 --reload
+    volumes:
+      - ./app:/app
+    ports:
+      - "8000:8000"
+    depends_on:
+      - mosquitto
+    networks:
+      - eldercare-network
+
 networks:
   eldercare-network:
     driver: bridge

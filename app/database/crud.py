@@ -140,6 +140,22 @@ def create_health_message(patient_id: str, message_type: str, data: dict, origin
     finally:
         db.close()
 
+def get_all_messages(limit: int = 100):
+    """
+    Busca todas as mensagens de saúde.
+    
+    Args:
+        limit: Número máximo de mensagens a retornar
+    Returns:
+        List[HealthMessage]: Lista de mensagens
+    """
+    db = get_db_session_sync()
+    try:
+        messages = db.query(HealthMessage).order_by(desc(HealthMessage.received_at)).limit(limit).all()
+        return messages
+    finally:
+        db.close()
+
 def get_patient_messages(patient_id: str, message_type: str = None, limit: int = 100):
     """
     Busca mensagens de um paciente específico.
