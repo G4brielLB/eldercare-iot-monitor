@@ -2,8 +2,17 @@ import random
 from .base_sensor import BaseSensor
 
 class OxygenSensor(BaseSensor):
-    def __init__(self, patient_id):
+    def __init__(self, patient_id, status='stable'):
         super().__init__(patient_id, "oxygen_saturation")
+        if status == 'stable':
+            # Saturação de oxigênio inicial estável (95-100%)
+            self.current_oxygen = random.randint(95, 100)
+        elif status == 'alert':
+            # Saturação de oxigênio inicial em alerta (90-94%)
+            self.current_oxygen = random.randint(90, 94)
+        elif status == 'critical':
+            # Saturação de oxigênio inicial crítica (85-89%)
+            self.current_oxygen = random.randint(80, 89)
     
     def generate_data(self):
         """Gera dados de saturação de oxigênio (85-100%)"""
@@ -11,15 +20,13 @@ class OxygenSensor(BaseSensor):
         # Baixo: 90-94% (atenção)
         # Crítico: <90%
         
-        rand = random.random()
+        variation = random.randint(-1, 1)
+        self.current_oxygen += variation
+        # Mantém dentro de limites realistas
+        self.current_oxygen = max(70, min(100, self.current_oxygen))
         
-        if rand < 0.7:  # 70% - normal
-            oxygen = random.randint(95, 100)
-        elif rand < 0.9:  # 20% - baixo
-            oxygen = random.randint(90, 94)
-        else:  # 10% - crítico
-            oxygen = random.randint(85, 89)
-            
+        oxygen = self.current_oxygen
+
         return {
             "value": oxygen,
             "unit": "%",

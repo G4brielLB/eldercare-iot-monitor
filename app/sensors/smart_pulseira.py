@@ -16,7 +16,13 @@ class SmartPulseira:
     Integra sensores + processamento edge + comunicação MQTT
     """
     
-    def __init__(self, patient_id: str):
+    def __init__(self, patient_id: str, 
+                 oxygen_status: str = 'stable', 
+                 stress_status: str = 'stable',
+                 temp_status: str = 'stable',
+                 heart_rate_status: str = 'stable',
+                 fall_chance: str = 'low'
+                ):
         self.patient_id = patient_id
         self.running = False
         
@@ -25,11 +31,11 @@ class SmartPulseira:
         
         # 1. Sensores IoT
         self.sensors = [
-            HeartRateSensor(patient_id),
-            StressSensor(patient_id),
-            TemperatureSensor(patient_id),
-            OxygenSensor(patient_id),
-            FallSensor(patient_id)
+            HeartRateSensor(patient_id, status=heart_rate_status),
+            StressSensor(patient_id, status=stress_status),
+            TemperatureSensor(patient_id, status=temp_status),
+            OxygenSensor(patient_id, status=oxygen_status),
+            FallSensor(patient_id, chance=fall_chance)
         ]
         
         # 2. Processador de borda (inteligência)

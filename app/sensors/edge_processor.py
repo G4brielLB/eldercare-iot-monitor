@@ -338,7 +338,7 @@ class EdgeProcessor:
         if 'temperature' in stats:
             avg_temp = stats['temperature']['avg']
             if avg_temp > 37.0:
-                if avg_temp > 39.0:
+                if avg_temp >= 39.0:
                     criticals.append('temperatura_critica_alta')
                     alerts.append({
                         'type': 'temperatura_critica_alta',
