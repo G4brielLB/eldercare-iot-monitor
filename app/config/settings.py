@@ -39,3 +39,11 @@ STRESS_LEVELS = {
     "high": {"min": 61, "max": 85, "description": "Estressado"},
     "critical": {"min": 86, "max": 100, "description": "Muito estressado"}
 }
+
+# Unidades de sensores
+SENSOR_UNITS = {
+    "heart_rate": "bpm",
+    "stress_level": "%",
+    "temperature": "°C",
+    "oxygen_saturation": "%"
+}

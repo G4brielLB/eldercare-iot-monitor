@@ -1,6 +1,6 @@
 import time
 from typing import List, Dict, Optional
-from config.settings import ALERT_THRESHOLDS
+from config.settings import ALERT_THRESHOLDS, SENSOR_UNITS
 
 class EdgeProcessor:
     """
@@ -233,31 +233,38 @@ class EdgeProcessor:
     def _calculate_statistics(self) -> Dict:
         """Calcula estatísticas dos dados no buffer"""
         stats = {}
-        
-        # Agrupa dados por tipo de sensor
         sensor_groups = {}
+
         for entry in self.normal_data_buffer:
             for reading in entry['readings']:
                 sensor_type = reading.get('sensor_type')
                 if sensor_type not in sensor_groups:
                     sensor_groups[sensor_type] = []
-                
-                # Adiciona valor se existir
-                value = reading.get('value')
-                if value is not None:
-                    sensor_groups[sensor_type].append(value)
-        
-        # Calcula estatísticas para cada sensor
+                # Sensor de queda: salva o bool
+                if sensor_type == 'fall_detection':
+                    sensor_groups[sensor_type].append(reading.get('fall_detected', False))
+                else:
+                    value = reading.get('value')
+                    if value is not None:
+                        sensor_groups[sensor_type].append(value)
+
         for sensor_type, values in sensor_groups.items():
-            if values:
+            unit = SENSOR_UNITS.get(sensor_type, 'unknown')
+            if sensor_type == 'fall_detection':
+                # Se qualquer valor for True, houve queda
+                stats[sensor_type] = {
+                    'fall_detected': any(values),
+                }
+            elif values:
                 stats[sensor_type] = {
                     'avg': round(sum(values) / len(values), 2),
                     'min': min(values),
                     'max': max(values),
                     'count': len(values),
-                    'last_value': values[-1]
+                    'last_value': values[-1],
+                    'unit': unit
                 }
-        
+
         return stats
     
     def _assess_overall_health(self, stats: Dict) -> tuple[str, List[Dict]]:
@@ -292,13 +299,6 @@ class EdgeProcessor:
                         'severity': 'concern'
                     })
             elif avg_hr < 65:
-                concerns.append('batimento_baixo')
-                alerts.append({
-                    'type': 'batimento_baixo',
-                    'sensor': 'heart_rate',
-                    'value': avg_hr,
-                    'severity': 'concern'
-                })
                 if avg_hr < 40:
                     criticals.append('batimento_critico_baixo')
                     alerts.append({
@@ -307,10 +307,26 @@ class EdgeProcessor:
                         'value': avg_hr,
                         'severity': 'critical'
                     })
+                else: 
+                    concerns.append('batimento_baixo')
+                    alerts.append({
+                        'type': 'batimento_baixo',
+                        'sensor': 'heart_rate',
+                        'value': avg_hr,
+                        'severity': 'concern'
+                    })
         
         if 'stress_level' in stats:
             avg_stress = stats['stress_level']['avg']
-            if avg_stress > 60:
+            if avg_stress > 80:
+                criticals.append('stress_critico')
+                alerts.append({
+                    'type': 'stress_critico',
+                    'sensor': 'stress_level',
+                    'value': avg_stress,
+                    'severity': 'critical'
+                })
+            elif avg_stress > 60:
                 concerns.append('stress_alto')
                 alerts.append({
                     'type': 'stress_alto',
@@ -318,25 +334,10 @@ class EdgeProcessor:
                     'value': avg_stress,
                     'severity': 'concern'
                 })
-                if avg_stress > 80:
-                    criticals.append('stress_critico')
-                    alerts.append({
-                        'type': 'stress_critico',
-                        'sensor': 'stress_level',
-                        'value': avg_stress,
-                        'severity': 'critical'
-                    })
         
         if 'temperature' in stats:
             avg_temp = stats['temperature']['avg']
             if avg_temp > 37.0:
-                concerns.append('temperatura_elevada')
-                alerts.append({
-                    'type': 'temperatura_elevada',
-                    'sensor': 'temperature',
-                    'value': avg_temp,
-                    'severity': 'concern'
-                })
                 if avg_temp > 39.0:
                     criticals.append('temperatura_critica_alta')
                     alerts.append({
@@ -345,14 +346,15 @@ class EdgeProcessor:
                         'value': avg_temp,
                         'severity': 'critical'
                     })
+                else:
+                    concerns.append('temperatura_elevada')
+                    alerts.append({
+                        'type': 'temperatura_elevada',
+                        'sensor': 'temperature',
+                        'value': avg_temp,
+                        'severity': 'concern'
+                    })
             elif avg_temp < 36.0:
-                concerns.append('temperatura_baixa')
-                alerts.append({
-                    'type': 'temperatura_baixa',
-                    'sensor': 'temperature',
-                    'value': avg_temp,
-                    'severity': 'concern'
-                })
                 if avg_temp < 35.0:
                     criticals.append('temperatura_critica_baixa')
                     alerts.append({
@@ -361,17 +363,18 @@ class EdgeProcessor:
                         'value': avg_temp,
                         'severity': 'critical'
                     })
+                else:
+                    concerns.append('temperatura_baixa')
+                    alerts.append({
+                        'type': 'temperatura_baixa',
+                        'sensor': 'temperature',
+                        'value': avg_temp,
+                        'severity': 'concern'
+                    })
         
         if 'oxygen_saturation' in stats:
             avg_oxygen = stats['oxygen_saturation']['avg']
             if avg_oxygen < 96:
-                concerns.append('oxigenacao_baixa')
-                alerts.append({
-                    'type': 'oxigenacao_baixa',
-                    'sensor': 'oxygen_saturation',
-                    'value': avg_oxygen,
-                    'severity': 'concern'
-                })
                 if avg_oxygen < 90:
                     criticals.append('oxigenacao_critica_baixa')
                     alerts.append({
@@ -380,6 +383,15 @@ class EdgeProcessor:
                         'value': avg_oxygen,
                         'severity': 'critical'
                     })
+                else:
+                    concerns.append('oxigenacao_baixa')
+                    alerts.append({
+                        'type': 'oxigenacao_baixa',
+                        'sensor': 'oxygen_saturation',
+                        'value': avg_oxygen,
+                        'severity': 'concern'
+                    })
+
         
         # Determina status geral
         if criticals:
