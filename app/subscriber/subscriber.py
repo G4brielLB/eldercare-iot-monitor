@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 """
 ElderCare Subscriber - Sistema de Monitoramento de Idosos
-Recebe mensagens MQTT das pulseiras e processa dados
+Recebe mensagens MQTT das pulseiras e salva em SQLite
 
 Funcionalidades:
 - Recebe emergency/summary/heartbeat via MQTT
-- Salva dados em JSON (temporário, migrar para SQLite)
+- Salva dados em SQLite usando módulo database
 - Calcula estado atual dos pacientes (SAUDÁVEL/ALERTA/CRÍTICO)
 - Monitora conectividade das pulseiras
 
@@ -23,21 +23,19 @@ from typing import Dict, List, Optional
 import paho.mqtt.client as mqtt
 from config.settings import MQTT_BROKER, MQTT_PORT
 
+# Importar módulo de persistência SQLite
+from database import create_health_message, get_patient
+
 
 class ElderCareSubscriber:
     """
     Subscriber MQTT que:
-    1. SALVA apenas emergency e summary em JSON
+    1. SALVA apenas emergency e summary em SQLite
     2. PROCESSA heartbeat apenas para status online/offline (NÃO SALVA)
     3. Calcula estado atual dos pacientes
     """
     
     def __init__(self):
-        # Arquivos de armazenamento (apenas dados médicos)
-        self.data_dir = "data"
-        self.messages_file = os.path.join(self.data_dir, "messages.json")
-        self.patients_file = os.path.join(self.data_dir, "patients_status.json")
-        
         # Status online dos pacientes (apenas em memória)
         self.online_patients = {}  # {patient_id: last_heartbeat_time}
         
@@ -59,12 +57,6 @@ class ElderCareSubscriber:
             'start_time': datetime.now()
         }
         
-        # Garante que diretório existe
-        os.makedirs(self.data_dir, exist_ok=True)
-        
-        # Inicializa arquivos se não existirem
-        self._init_files()
-        
         # Cliente MQTT
         try:
             self.client = mqtt.Client(
@@ -75,8 +67,7 @@ class ElderCareSubscriber:
             self.client = mqtt.Client(client_id=f"eldercare_subscriber_{int(time.time())}")
         
         print("🔧 ElderCare Subscriber inicializado")
-        print(f"📁 Diretório de dados: {self.data_dir}")
-        print(f"💾 SALVA: emergency + summary")
+        print(f" SALVA em SQLite: emergency + summary")
         print(f"💓 PROCESSA (não salva): heartbeat")
     
     def _init_files(self):
@@ -160,7 +151,6 @@ class ElderCareSubscriber:
             if message_type in ['emergency', 'summary']:
                 self.stats['messages_received'] += 1
                 self._save_medical_message(message_type, patient_id, payload, msg.qos)
-                self._update_patient_status(patient_id, message_type, payload)
                 
                 if message_type == 'emergency':
                     self.stats['emergencies_received'] += 1
@@ -191,100 +181,40 @@ class ElderCareSubscriber:
         uptime = payload.get('uptime_seconds', 0)
         print(f"💓 {patient_id} online (uptime: {uptime}s)")
     
-    def _save_medical_message(self, message_type: str, patient_id: str, payload: Dict, qos: int):
-        """Salva APENAS mensagens médicas (emergency + summary)"""
-        medical_message = {
-            'id': f"{patient_id}_{message_type}_{int(time.time() * 1000)}",
-            'received_at': datetime.now().isoformat(),
-            'message_type': message_type,
-            'patient_id': patient_id,
-            'qos': qos,
-            'payload': payload
-        }
+    def _save_medical_message(self, message_type: str, patient_id: str, data: Dict, qos: int):
+        """Salva APENAS mensagens médicas (emergency + summary) em SQLite"""
+        # Verificar se paciente existe no banco
+        patient = get_patient(patient_id)
+        if not patient:
+            print(f"⚠️  Paciente {patient_id} não encontrado no banco. Mensagem ignorada.")
+            return
         
-        # Carrega e adiciona
-        try:
-            with open(self.messages_file, 'r') as f:
-                messages = json.load(f)
-        except (FileNotFoundError, json.JSONDecodeError):
-            messages = []
-        
-        messages.append(medical_message)
-        
-        # Salva
-        with open(self.messages_file, 'w') as f:
-            json.dump(messages, f, indent=2, ensure_ascii=False)
-        
-        # Log
-        if message_type == 'emergency':
-            alerts = payload.get('alerts', [])
-            print(f"🚨 EMERGÊNCIA salva: {patient_id} - {len(alerts)} alertas")
+        # Extrair timestamp original da mensagem
+        created_at = data.get('created_at', time.time())
+        if isinstance(created_at, (int, float)):
+            original_timestamp = datetime.fromtimestamp(created_at).isoformat()
         else:
-            readings_count = payload.get('readings_count', 0)
-            health_status = payload.get('health_status', 'unknown')
-            print(f"📊 RESUMO salvo: {patient_id} - {readings_count} leituras, status: {health_status}")
-    
-    def _update_patient_status(self, patient_id: str, message_type: str, payload: Dict):
-        """Atualiza estado baseado na mensagem recebida (não no tempo)"""
-        try:
-            with open(self.patients_file, 'r') as f:
-                patients = json.load(f)
-        except (FileNotFoundError, json.JSONDecodeError):
-            patients = {}
+            original_timestamp = created_at
         
-        # Inicializa paciente se não existe
-        if patient_id not in patients:
-            patients[patient_id] = {
-                'patient_id': patient_id,
-                'current_status': self.HEALTHY,
-                'last_emergency': None,
-                'last_summary': None,
-                'last_update': None
-            }
+        # Salvar no SQLite usando módulo database
+        message = create_health_message(
+            patient_id=patient_id,
+            message_type=message_type,
+            data=data,
+            original_timestamp=original_timestamp
+        )
         
-        current_time = datetime.now().isoformat()
-        
-        # Atualiza baseado no tipo
-        if message_type == 'emergency':
-            patients[patient_id]['last_emergency'] = current_time
-            patients[patient_id]['current_status'] = self.CRITICAL
-            
-        elif message_type == 'summary':
-            patients[patient_id]['last_summary'] = current_time
-            
-            # Estado baseado no health_status do EdgeProcessor
-            health_status = payload.get('health_status', 'unknown')
-            if health_status == 'preocupante':
-                patients[patient_id]['current_status'] = self.ALERT
-            elif health_status in ['estavel', 'atencao']:
-                patients[patient_id]['current_status'] = self.HEALTHY
-        
-        patients[patient_id]['last_update'] = current_time
-        
-        # Salva
-        with open(self.patients_file, 'w') as f:
-            json.dump(patients, f, indent=2, ensure_ascii=False)
-    
-    def get_patients_status(self) -> Dict:
-        """Retorna status atual de todos os pacientes"""
-        try:
-            with open(self.patients_file, 'r') as f:
-                patients = json.load(f)
-            
-            # Adiciona status online/offline baseado no heartbeat
-            current_time = time.time()
-            for patient_id, data in patients.items():
-                last_heartbeat = self.online_patients.get(patient_id, 0)
-                is_online = (current_time - last_heartbeat) < self.heartbeat_timeout
-                data['online_status'] = 'ONLINE' if is_online else 'OFFLINE'
-                if last_heartbeat > 0:
-                    data['last_heartbeat'] = datetime.fromtimestamp(last_heartbeat).isoformat()
-                else:
-                    data['last_heartbeat'] = None
-            
-            return patients
-        except Exception:
-            return {}
+        if message:
+            # Log de sucesso
+            if message_type == 'emergency':
+                alerts = data.get('alerts', [])
+                print(f"🚨 EMERGÊNCIA salva: {patient_id} - {len(alerts)} alertas")
+            else:
+                readings_count = data.get('readings_count', 0)
+                health_status = data.get('health_status', 'unknown')
+                print(f"📊 RESUMO salvo: {patient_id} - {readings_count} leituras, status: {health_status}")
+        else:
+            print(f"❌ Erro ao salvar mensagem {message_type} para {patient_id}")
     
     def get_statistics(self) -> Dict:
         """Retorna estatísticas do subscriber"""
@@ -304,7 +234,7 @@ class ElderCareSubscriber:
         stats = self.get_statistics()
         print(f"\n📊 === ESTATÍSTICAS FINAIS SUBSCRIBER ===")
         print(f"⏱️  Tempo ativo: {stats['uptime_seconds']} segundos")
-        print(f"📨 Mensagens salvas: {stats['messages_received']}")
+        print(f"📨 Mensagens salvas no SQLite: {stats['messages_received']}")
         print(f"🚨 Emergências salvas: {stats['emergencies_received']}")
         print(f"📊 Resumos salvos: {stats['summaries_received']}")
         print(f"💓 Heartbeats processados (não salvos): {stats['heartbeats_processed']}")

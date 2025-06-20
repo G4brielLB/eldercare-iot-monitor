@@ -12,7 +12,7 @@ class EdgeProcessor:
         self.patient_id = patient_id
         self.normal_data_buffer = []
         self.last_summary_sent = time.time()
-        self.summary_interval = 60  # 5 minutos entre resumos
+        self.summary_interval = 60  # 1 minutos entre resumos
         self.emergency_cooldown = 30  # 1 minuto entre emergências
         self.last_emergency_time = 0
         
@@ -26,14 +26,15 @@ class EdgeProcessor:
         Returns:
             Dict com decisão: 'emergency', 'summary', 'buffer' ou 'ignore'
         """
+
+        # Adiciona ao buffer de dados normais
+        self._add_to_buffer(sensor_readings)
         
         # Verifica alertas críticos primeiro
         emergency_result = self._check_emergency_conditions(sensor_readings)
         if emergency_result:
             return emergency_result
         
-        # Adiciona ao buffer de dados normais
-        self._add_to_buffer(sensor_readings)
         
         # Verifica se deve enviar resumo
         if self._should_send_summary():
@@ -209,23 +210,23 @@ class EdgeProcessor:
             'message_type': message_type,
             'timestamp': time.time(),
             'patient_id': self.patient_id,
-            'severity': kwargs.get('severity', 'normal'),
+            #'severity': kwargs.get('severity', 'normal'),
             'health_status': kwargs.get('health_status', 'stable'),
             'alerts': kwargs.get('alerts', []),
             'statistics': kwargs.get('statistics', {})
         }
         
         # CAMPOS ESPECÍFICOS POR TIPO
-        if message_type == 'emergency':
-            base_message.update({
-                'context_data': kwargs.get('context_data', {})
-            })
-        elif message_type == 'summary':
-            base_message.update({
-                'readings_count': kwargs.get('readings_count', 0),
-                'period_start': kwargs.get('period_start'),
-                'period_end': kwargs.get('period_end')
-            })
+        # if message_type == 'emergency':
+        #     base_message.update({
+        #         'context_data': kwargs.get('context_data', {})
+        #     })
+        # elif message_type == 'summary':
+        #     base_message.update({
+        #         'readings_count': kwargs.get('readings_count', 0),
+        #         'period_start': kwargs.get('period_start'),
+        #         'period_end': kwargs.get('period_end')
+        #     })
         
         return base_message
     
@@ -274,13 +275,6 @@ class EdgeProcessor:
         if 'heart_rate' in stats:
             avg_hr = stats['heart_rate']['avg']
             if avg_hr > 100:
-                concerns.append('batimento_elevado')
-                alerts.append({
-                    'type': 'batimento_elevado',
-                    'sensor': 'heart_rate',
-                    'value': avg_hr,
-                    'severity': 'concern'
-                })
                 if avg_hr > 120:
                     criticals.append('batimento_critico_alto')
                     alerts.append({
@@ -288,6 +282,14 @@ class EdgeProcessor:
                         'sensor': 'heart_rate',
                         'value': avg_hr,
                         'severity': 'critical'
+                    })
+                else:
+                    concerns.append('batimento_elevado')
+                    alerts.append({
+                        'type': 'batimento_elevado',
+                        'sensor': 'heart_rate',
+                        'value': avg_hr,
+                        'severity': 'concern'
                     })
             elif avg_hr < 65:
                 concerns.append('batimento_baixo')

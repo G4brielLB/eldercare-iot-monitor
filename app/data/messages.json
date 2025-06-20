@@ -1,188 +1,14 @@
 [
   {
-    "id": "PAT002_summary_1750301676160",
-    "received_at": "2025-06-18T23:54:36.160042",
-    "message_type": "summary",
-    "patient_id": "PAT002",
-    "qos": 1,
-    "payload": {
-      "message_type": "summary",
-      "timestamp": 1750301676.158122,
-      "patient_id": "PAT002",
-      "severity": "normal",
-      "health_status": "alert",
-      "alerts": [
-        {
-          "type": "temperatura_elevada",
-          "sensor": "temperature",
-          "value": 37.03,
-          "severity": "concern"
-        }
-      ],
-      "statistics": {
-        "heart_rate": {
-          "avg": 74.0,
-          "min": 70,
-          "max": 83,
-          "count": 6,
-          "last_value": 83
-        },
-        "stress_level": {
-          "avg": 39.17,
-          "min": 8,
-          "max": 80,
-          "count": 6,
-          "last_value": 53
-        },
-        "temperature": {
-          "avg": 37.03,
-          "min": 36.7,
-          "max": 37.6,
-          "count": 6,
-          "last_value": 37.2
-        },
-        "oxygen_saturation": {
-          "avg": 97.83,
-          "min": 95,
-          "max": 100,
-          "count": 6,
-          "last_value": 100
-        }
-      },
-      "readings_count": 6,
-      "period_start": 1750301614.0277078,
-      "period_end": 1750301676.157963
-    }
-  },
-  {
-    "id": "PAT001_emergency_1750301677639",
-    "received_at": "2025-06-18T23:54:37.639716",
+    "id": "PAT001_emergency_1750373951011",
+    "received_at": "2025-06-19T19:59:11.011328",
     "message_type": "emergency",
     "patient_id": "PAT001",
-    "qos": 2,
-    "payload": {
+    "timestamp": "2025-06-19T19:59:10.997497",
+    "data": {
       "message_type": "emergency",
-      "timestamp": 1750301677.634811,
+      "timestamp": 1750373950.997497,
       "patient_id": "PAT001",
-      "severity": "critical",
-      "health_status": "critical",
-      "alerts": [
-        {
-          "type": "LOW_OXYGEN",
-          "value": 89,
-          "message": "Oxigenação crítica: 89%"
-        }
-      ],
-      "statistics": [
-        {
-          "sensor_type": "heart_rate",
-          "timestamp": 1750301677.63467,
-          "value": 71,
-          "unit": "bpm"
-        },
-        {
-          "sensor_type": "stress_level",
-          "timestamp": 1750301677.634711,
-          "value": 20,
-          "unit": "%"
-        },
-        {
-          "sensor_type": "temperature",
-          "timestamp": 1750301677.634735,
-          "value": 36.8,
-          "unit": "°C"
-        },
-        {
-          "sensor_type": "oxygen_saturation",
-          "timestamp": 1750301677.6347551,
-          "value": 89,
-          "unit": "%"
-        },
-        {
-          "sensor_type": "fall_detection",
-          "timestamp": 1750301677.6347651,
-          "fall_detected": false
-        }
-      ],
-      "context_data": {
-        "recent_readings_count": 3,
-        "buffer_size": 5,
-        "trend": "Dados estavam normais antes da emergência"
-      }
-    }
-  },
-  {
-    "id": "PAT001_summary_1750301687565",
-    "received_at": "2025-06-18T23:54:47.565429",
-    "message_type": "summary",
-    "patient_id": "PAT001",
-    "qos": 1,
-    "payload": {
-      "message_type": "summary",
-      "timestamp": 1750301687.560744,
-      "patient_id": "PAT001",
-      "severity": "normal",
-      "health_status": "alert",
-      "alerts": [
-        {
-          "type": "temperatura_elevada",
-          "sensor": "temperature",
-          "value": 37.22,
-          "severity": "concern"
-        },
-        {
-          "type": "oxigenacao_baixa",
-          "sensor": "oxygen_saturation",
-          "value": 95.67,
-          "severity": "concern"
-        }
-      ],
-      "statistics": {
-        "heart_rate": {
-          "avg": 78.0,
-          "min": 70,
-          "max": 83,
-          "count": 6,
-          "last_value": 80
-        },
-        "stress_level": {
-          "avg": 20.33,
-          "min": 5,
-          "max": 54,
-          "count": 6,
-          "last_value": 13
-        },
-        "temperature": {
-          "avg": 37.22,
-          "min": 36.5,
-          "max": 38.5,
-          "count": 6,
-          "last_value": 38.5
-        },
-        "oxygen_saturation": {
-          "avg": 95.67,
-          "min": 91,
-          "max": 98,
-          "count": 6,
-          "last_value": 91
-        }
-      },
-      "readings_count": 6,
-      "period_start": 1750301612.023629,
-      "period_end": 1750301687.5606039
-    }
-  },
-  {
-    "id": "PAT002_emergency_1750301689194",
-    "received_at": "2025-06-18T23:54:49.194587",
-    "message_type": "emergency",
-    "patient_id": "PAT002",
-    "qos": 2,
-    "payload": {
-      "message_type": "emergency",
-      "timestamp": 1750301689.187977,
-      "patient_id": "PAT002",
-      "severity": "critical",
       "health_status": "critical",
       "alerts": [
         {
@@ -194,258 +20,136 @@
       "statistics": [
         {
           "sensor_type": "heart_rate",
-          "timestamp": 1750301689.1878521,
-          "value": 80,
+          "timestamp": 1750373950.996095,
+          "value": 106,
           "unit": "bpm"
         },
         {
           "sensor_type": "stress_level",
-          "timestamp": 1750301689.187867,
-          "value": 57,
+          "timestamp": 1750373950.996149,
+          "value": 48,
           "unit": "%"
         },
         {
           "sensor_type": "temperature",
-          "timestamp": 1750301689.1879191,
-          "value": 37.0,
+          "timestamp": 1750373950.996199,
+          "value": 36.8,
           "unit": "°C"
         },
         {
           "sensor_type": "oxygen_saturation",
-          "timestamp": 1750301689.1879349,
+          "timestamp": 1750373950.9972029,
           "value": 85,
           "unit": "%"
         },
         {
           "sensor_type": "fall_detection",
-          "timestamp": 1750301689.187943,
+          "timestamp": 1750373950.9972649,
           "fall_detected": false
         }
-      ],
-      "context_data": {
-        "message": "Sem dados recentes disponíveis"
-      }
+      ]
     }
   },
   {
-    "id": "PAT001_emergency_1750301728889",
-    "received_at": "2025-06-18T23:55:28.889091",
-    "message_type": "emergency",
-    "patient_id": "PAT001",
-    "qos": 2,
-    "payload": {
-      "message_type": "emergency",
-      "timestamp": 1750301728.884274,
-      "patient_id": "PAT001",
-      "severity": "critical",
-      "health_status": "critical",
-      "alerts": [
-        {
-          "type": "LOW_OXYGEN",
-          "value": 87,
-          "message": "Oxigenação crítica: 87%"
-        }
-      ],
-      "statistics": [
-        {
-          "sensor_type": "heart_rate",
-          "timestamp": 1750301728.884099,
-          "value": 85,
-          "unit": "bpm"
-        },
-        {
-          "sensor_type": "stress_level",
-          "timestamp": 1750301728.884128,
-          "value": 16,
-          "unit": "%"
-        },
-        {
-          "sensor_type": "temperature",
-          "timestamp": 1750301728.8841522,
-          "value": 36.1,
-          "unit": "°C"
-        },
-        {
-          "sensor_type": "oxygen_saturation",
-          "timestamp": 1750301728.884171,
-          "value": 87,
-          "unit": "%"
-        },
-        {
-          "sensor_type": "fall_detection",
-          "timestamp": 1750301728.8841789,
-          "fall_detected": false
-        }
-      ],
-      "context_data": {
-        "recent_readings_count": 3,
-        "buffer_size": 3,
-        "trend": "Dados estavam normais antes da emergência"
-      }
-    }
-  },
-  {
-    "id": "PAT002_summary_1750301738926",
-    "received_at": "2025-06-18T23:55:38.926363",
+    "id": "PAT001_summary_1750373988117",
+    "received_at": "2025-06-19T19:59:48.117017",
     "message_type": "summary",
-    "patient_id": "PAT002",
-    "qos": 1,
-    "payload": {
+    "patient_id": "PAT001",
+    "timestamp": "2025-06-19T19:59:48.110260",
+    "data": {
       "message_type": "summary",
-      "timestamp": 1750301738.9236999,
-      "patient_id": "PAT002",
-      "severity": "normal",
+      "timestamp": 1750373988.11026,
+      "patient_id": "PAT001",
       "health_status": "alert",
       "alerts": [
         {
-          "type": "temperatura_elevada",
-          "sensor": "temperature",
-          "value": 37.1,
-          "severity": "concern"
-        },
-        {
-          "type": "oxigenacao_baixa",
-          "sensor": "oxygen_saturation",
-          "value": 94.0,
+          "type": "batimento_elevado",
+          "sensor": "heart_rate",
+          "value": 106.86,
           "severity": "concern"
         }
       ],
       "statistics": {
         "heart_rate": {
-          "avg": 75.75,
-          "min": 70,
-          "max": 81,
-          "count": 4,
-          "last_value": 72
+          "avg": 106.86,
+          "min": 101,
+          "max": 110,
+          "count": 7,
+          "last_value": 107
         },
         "stress_level": {
-          "avg": 14.0,
-          "min": 6,
-          "max": 23,
-          "count": 4,
-          "last_value": 18
+          "avg": 51.57,
+          "min": 28,
+          "max": 70,
+          "count": 7,
+          "last_value": 56
         },
         "temperature": {
-          "avg": 37.1,
-          "min": 36.9,
-          "max": 37.5,
-          "count": 4,
-          "last_value": 37.0
-        },
-        "oxygen_saturation": {
-          "avg": 94.0,
-          "min": 90,
-          "max": 99,
-          "count": 4,
-          "last_value": 92
-        }
-      },
-      "readings_count": 4,
-      "period_start": 1750301702.954089,
-      "period_end": 1750301738.923628
-    }
-  },
-  {
-    "id": "PAT001_summary_1750301755212",
-    "received_at": "2025-06-18T23:55:55.212875",
-    "message_type": "summary",
-    "patient_id": "PAT001",
-    "qos": 1,
-    "payload": {
-      "message_type": "summary",
-      "timestamp": 1750301755.209013,
-      "patient_id": "PAT001",
-      "severity": "normal",
-      "health_status": "stable",
-      "alerts": [],
-      "statistics": {
-        "heart_rate": {
-          "avg": 71.4,
-          "min": 65,
-          "max": 78,
-          "count": 5,
-          "last_value": 69
-        },
-        "stress_level": {
-          "avg": 23.4,
-          "min": 7,
-          "max": 58,
-          "count": 5,
-          "last_value": 58
-        },
-        "temperature": {
-          "avg": 36.84,
+          "avg": 36.66,
           "min": 36.1,
           "max": 37.5,
-          "count": 5,
-          "last_value": 37.5
+          "count": 7,
+          "last_value": 36.6
         },
         "oxygen_saturation": {
-          "avg": 96.4,
-          "min": 95,
-          "max": 99,
-          "count": 5,
-          "last_value": 96
+          "avg": 96.14,
+          "min": 85,
+          "max": 100,
+          "count": 7,
+          "last_value": 99
         }
-      },
-      "readings_count": 5,
-      "period_start": 1750301701.656854,
-      "period_end": 1750301755.208887
+      }
     }
   },
   {
-    "id": "PAT001_emergency_1750301763388",
-    "received_at": "2025-06-18T23:56:03.388371",
+    "id": "PAT001_emergency_1750374032317",
+    "received_at": "2025-06-19T20:00:32.318459",
     "message_type": "emergency",
     "patient_id": "PAT001",
-    "qos": 2,
-    "payload": {
+    "timestamp": "2025-06-19T20:00:32.034984",
+    "data": {
       "message_type": "emergency",
-      "timestamp": 1750301763.384495,
+      "timestamp": 1750374032.0349839,
       "patient_id": "PAT001",
-      "severity": "critical",
       "health_status": "critical",
       "alerts": [
         {
           "type": "HIGH_STRESS",
-          "value": 86,
-          "message": "Nível de stress crítico: 86%"
+          "value": 87,
+          "message": "Nível de stress crítico: 87%"
         }
       ],
       "statistics": [
         {
           "sensor_type": "heart_rate",
-          "timestamp": 1750301763.384282,
-          "value": 74,
+          "timestamp": 1750374032.026768,
+          "value": 111,
           "unit": "bpm"
         },
         {
           "sensor_type": "stress_level",
-          "timestamp": 1750301763.3843179,
-          "value": 86,
+          "timestamp": 1750374032.0268748,
+          "value": 87,
           "unit": "%"
         },
         {
           "sensor_type": "temperature",
-          "timestamp": 1750301763.3843951,
-          "value": 37.5,
+          "timestamp": 1750374032.027176,
+          "value": 36.3,
           "unit": "°C"
         },
         {
           "sensor_type": "oxygen_saturation",
-          "timestamp": 1750301763.38444,
-          "value": 94,
+          "timestamp": 1750374032.027325,
+          "value": 95,
           "unit": "%"
         },
         {
           "sensor_type": "fall_detection",
-          "timestamp": 1750301763.384453,
+          "timestamp": 1750374032.027346,
           "fall_detected": false
         }
-      ],
-      "context_data": {
-        "message": "Sem dados recentes disponíveis"
-      }
+      ]
     }
   }
 ]
