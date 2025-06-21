@@ -26,7 +26,8 @@ class TemperatureSensor(BaseSensor):
         self.current_temperature += variation
         # Mantém dentro de limites realistas
         self.current_temperature = max(34.0, min(40.0, self.current_temperature))
-        temperature = self.current_temperature
+        # Arredonda para 1 casa decimal para evitar problemas de precisão float
+        temperature = round(self.current_temperature, 1)
 
         return {
             "value": temperature,

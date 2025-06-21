@@ -18,6 +18,7 @@ Estrutura de Estados:
 import json
 import time
 import os
+import threading
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional
 import paho.mqtt.client as mqtt
@@ -45,8 +46,12 @@ class ElderCareSubscriber:
         self.CRITICAL = "CRÍTICO"
         self.OFFLINE = "OFFLINE"
         
-        # Apenas timeout de heartbeat
+        # Controle de execução
+        self.running = False
+        
+        # Timeout de heartbeat
         self.heartbeat_timeout = 90    # 90s sem heartbeat = offline
+        self.offline_check_interval = 30  # Verifica a cada 30 segundos
         
         # Estatísticas
         self.stats = {
@@ -88,20 +93,88 @@ class ElderCareSubscriber:
         self.client.on_message = self._on_message
         self.client.on_disconnect = self._on_disconnect
         
+        # Inicia flag de execução
+        self.running = True
+        
         try:
             print(f"🔗 Conectando ao broker {MQTT_BROKER}:{MQTT_PORT}...")
             self.client.connect(MQTT_BROKER, MQTT_PORT, 60)
+            
+            # Inicia thread de monitoramento de timeout em background
+            self._start_patient_monitor()
             
             print("👂 Aguardando mensagens MQTT...")
             print("Press Ctrl+C para parar\n")
             self.client.loop_forever()
             
         except KeyboardInterrupt:
-            print("\n⏹️  Parando subscriber...")
-            self._show_final_stats()
-            self.client.disconnect()
+            print(f"\n🛑 Interrompido pelo usuário (Ctrl+C)")
+            self._graceful_shutdown()
         except Exception as e:
             print(f"❌ Erro no subscriber: {e}")
+            self._graceful_shutdown()
+    
+    def _graceful_shutdown(self):
+        """Desligamento gracioso do subscriber"""
+        try:
+            print("🔄 Finalizando subscriber...")
+            
+            # Para thread de monitoramento
+            self.running = False
+            
+            self._show_final_stats()
+            
+            # Tenta desconectar de forma segura
+            if hasattr(self, 'client') and self.client.is_connected():
+                print("🔌 Desconectando do broker MQTT...")
+                self.client.disconnect()
+                self.client.loop_stop()  # Para o loop de forma segura
+            
+            print("✅ Subscriber finalizado com sucesso")
+            
+        except Exception as e:
+            print(f"⚠️  Erro durante finalização: {e}")
+            print("✅ Subscriber finalizado (com avisos)")
+    
+    def _start_patient_monitor(self):
+        """Inicia thread de monitoramento de timeout de pacientes"""
+        import threading
+        monitor_thread = threading.Thread(target=self._patient_timeout_monitor, daemon=True)
+        monitor_thread.start()
+        print(f"👁️  Monitor de timeout iniciado (verifica a cada {self.offline_check_interval}s)")
+    
+    def _patient_timeout_monitor(self):
+        """
+        Monitor que roda em thread separada
+        Verifica se algum paciente ficou offline (sem heartbeat)
+        """
+        patients_offline = set()  # Track de pacientes já marcados como offline
+        
+        while self.running:
+            try:
+                current_time = time.time()
+                
+                # Verifica cada paciente que já enviou heartbeat
+                for patient_id, last_heartbeat in self.online_patients.items():
+                    time_since_last = current_time - last_heartbeat
+                    
+                    if time_since_last > self.heartbeat_timeout:
+                        # Paciente ficou offline
+                        if patient_id not in patients_offline:
+                            print(f"⚠️  PACIENTE OFFLINE: {patient_id} (sem heartbeat há {int(time_since_last)}s)")
+                            patients_offline.add(patient_id)
+                    else:
+                        # Paciente voltou online
+                        if patient_id in patients_offline:
+                            print(f"✅ PACIENTE ONLINE: {patient_id} (heartbeat recebido)")
+                            patients_offline.remove(patient_id)
+                
+                # Aguarda próxima verificação
+                time.sleep(self.offline_check_interval)
+                
+            except Exception as e:
+                print(f"⚠️  Erro no monitor de timeout: {e}")
+                time.sleep(self.offline_check_interval)
     
     def _on_connect(self, client, userdata, flags, reason_code, properties=None):
         """Callback quando conecta ao broker"""
@@ -126,9 +199,9 @@ class ElderCareSubscriber:
         print("   📊 summary/* - SALVA") 
         print("   💓 heartbeat/* - APENAS status online")
     
-    def _on_disconnect(self, client, userdata, reason_code, properties=None):
+    def _on_disconnect(self, client, userdata, reason_code, properties=None, *args):
         """Callback quando desconecta do broker"""
-        print(f"🔌 Desconectado do broker MQTT")
+        print(f"🔌 Desconectado do broker MQTT (código: {reason_code})")
     
     def _on_message(self, client, userdata, msg):
         """Callback quando recebe mensagem"""
@@ -168,18 +241,30 @@ class ElderCareSubscriber:
         """
         Processa heartbeat APENAS para status online
         NÃO SALVA em arquivo nenhum
+        Só marca online se o heartbeat for recente (<= 60s)
         """
-        current_time = time.time()
-        
+        # Extrai timestamp do heartbeat
+        created_at = payload.get('created_at')
+        if created_at is None:
+            print(f"⚠️  Heartbeat de {patient_id} sem 'created_at'. Ignorado.")
+            return
+        try:
+            heartbeat_time = float(created_at)
+        except Exception:
+            print(f"⚠️  Timestamp inválido no heartbeat de {patient_id}: {created_at}")
+            return
+        now = time.time()
+        age = now - heartbeat_time
+        # Só aceita heartbeats dos últimos 60s
+        if age > 60:
+            print(f"⏳ Heartbeat antigo ignorado para {patient_id} (age={int(age)}s, ts={heartbeat_time})")
+            return
         # Atualiza apenas em memória
-        self.online_patients[patient_id] = current_time
-        
+        self.online_patients[patient_id] = now
         # Estatística (mas não salva)
         self.stats['heartbeats_processed'] += 1
-        
-        # Log mínimo
         uptime = payload.get('uptime_seconds', 0)
-        print(f"💓 {patient_id} online (uptime: {uptime}s)")
+        print(f"💓 {patient_id} online (uptime: {uptime}s, heartbeat age: {int(age)}s)")
     
     def _save_medical_message(self, message_type: str, patient_id: str, data: Dict, qos: int):
         """Salva APENAS mensagens médicas (emergency + summary) em SQLite"""

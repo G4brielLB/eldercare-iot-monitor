@@ -130,7 +130,7 @@ class PulseiraPublisher:
             'patient_id': self.patient_id,
             'device_id': f"pulseira_{self.patient_id}",
             'message_type': 'HEARTBEAT',
-            'timestamp': time.time(),
+            'created_at': time.time(),  # Corrigido para compatibilidade
             'status': 'online',
             'uptime_seconds': time.time() - (self.stats.get('connection_time', time.time())),
             'stats': {
@@ -143,7 +143,7 @@ class PulseiraPublisher:
         try:
             # Retain=True: broker mantém última mensagem
             # Se pulseira desconectar, sistema sabe que último status era "online"
-            result = self.client.publish(topic, json.dumps(heartbeat_data), qos=0, retain=True)
+            result = self.client.publish(topic, json.dumps(heartbeat_data), qos=0, retain=False)
             
             if result.rc == mqtt.MQTT_ERR_SUCCESS:
                 self.stats['heartbeat_sent'] += 1

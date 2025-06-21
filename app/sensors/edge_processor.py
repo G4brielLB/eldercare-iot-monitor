@@ -392,6 +392,15 @@ class EdgeProcessor:
                         'severity': 'concern'
                     })
 
+        if 'fall_detection' in stats and stats['fall_detection'].get('fall_detected', False):
+            criticals.append('queda_detectada')
+            alerts.append({
+                'type': 'queda_detectada',
+                'sensor': 'fall_detection',
+                'severity': 'critical',
+                'message': 'Queda detectada!'
+            })
+
         
         # Determina status geral
         if criticals:
