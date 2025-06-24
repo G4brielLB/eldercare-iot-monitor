@@ -259,7 +259,7 @@ class SmartPulseira:
         pub_status = self.publisher.get_connection_status()
         pub_stats = pub_status.get('statistics', {})
         print(f"📤 Emergências enviadas: {pub_stats.get('emergency_sent', 0)}")
-        print(f"📤 Resumos enviados: {pub_stats.get('summary_sent', 0)}")
+        # print(f"📤 Resumos enviados: {pub_stats.get('summary_sent', 0)}")
         print(f"💓 Heartbeats enviados: {pub_stats.get('heartbeat_sent', 0)}")
     
     def get_real_time_status(self) -> Dict:

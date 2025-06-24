@@ -1,6 +1,6 @@
 import time
 from typing import List, Dict, Optional
-from config.settings import ALERT_THRESHOLDS, SENSOR_UNITS
+from config.settings import SENSOR_UNITS
 
 class EdgeProcessor:
     """

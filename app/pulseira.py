@@ -51,23 +51,23 @@ def main():
             
             # Configuração individual de cada sensor escolhido
             if "oxigenio" in sensores or "oxygen" in sensores:
-                oxygen_status = input("   🫁 Status do sensor de oxigênio (stable/alert/critical): ").strip() or "stable"
+                oxygen_status = input("   🫁 Status do sensor de oxigênio (stable/alert/critical): ").strip().lower() or "stable"
                 print(f"      ✅ Oxigênio: {oxygen_status}")
             
             if "stress" in sensores:
-                stress_status = input("   😰 Status do sensor de stress (stable/alert/critical): ").strip() or "stable"
+                stress_status = input("   😰 Status do sensor de stress (stable/alert/critical): ").strip().lower() or "stable"
                 print(f"      ✅ Stress: {stress_status}")
             
             if "temperatura" in sensores or "temp" in sensores:
-                temp_status = input("   🌡️  Status do sensor de temperatura (stable/alert/critical): ").strip() or "stable"
+                temp_status = input("   🌡️  Status do sensor de temperatura (stable/alert/critical): ").strip().lower() or "stable"
                 print(f"      ✅ Temperatura: {temp_status}")
             
             if "batimento" in sensores or "heart" in sensores or "coracao" in sensores:
-                heart_rate_status = input("   💓 Status do sensor de batimento (stable/alert/critical): ").strip() or "stable"
+                heart_rate_status = input("   💓 Status do sensor de batimento (stable/alert/critical): ").strip().lower() or "stable"
                 print(f"      ✅ Batimento: {heart_rate_status}")
             
             if "queda" in sensores or "fall" in sensores:
-                fall_chance = input("   🤸 Chance de queda (low/medium/high): ").strip() or "low"
+                fall_chance = input("   🤸 Chance de queda (low/medium/high): ").strip().lower() or "low"
                 print(f"      ✅ Queda: {fall_chance}")
         else:
             print("   📋 Usando configuração padrão para todos os sensores")
