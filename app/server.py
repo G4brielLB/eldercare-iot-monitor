@@ -1,4 +1,5 @@
 from fastapi import FastAPI, BackgroundTasks
+from fastapi.middleware.cors import CORSMiddleware
 from subscriber.subscriber import ElderCareSubscriber
 from database.crud import get_patient, get_all_messages, get_patient_messages, get_all_patients
 from fastapi.responses import JSONResponse
@@ -9,7 +10,17 @@ import multiprocessing
 from fastapi import Response
 from fastapi.encoders import jsonable_encoder
 
-app = FastAPI()
+app = FastAPI(title="ElderCare IoT Monitor API", version="1.0.0")
+
+# Configuração CORS
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Em produção, especificar domínios específicos
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 subscriber_process = None
 
 def run_subscriber():

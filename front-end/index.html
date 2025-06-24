@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ElderCare IoT Monitor</title>
+    <link rel="stylesheet" href="styles.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <div class="container">
+        <header class="header">
+            <div class="header-content">
+                <div class="logo">
+                    <i class="fas fa-heartbeat"></i>
+                    <h1>ElderCare Monitor</h1>
+                </div>
+                <div class="status-indicators">
+                    <div class="connection-status" id="connectionStatus">
+                        <i class="fas fa-circle"></i>
+                        <span>Conectado</span>
+                    </div>
+                    <div class="last-update">
+                        <i class="fas fa-clock"></i>
+                        <span id="lastUpdate">Carregando...</span>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <main class="main-content">
+            <div class="controls">
+                <button class="btn btn-primary" id="startSubscriber">
+                    <i class="fas fa-play"></i>
+                    Iniciar Monitoramento
+                </button>
+                <button class="btn btn-secondary" id="refreshData">
+                    <i class="fas fa-sync-alt"></i>
+                    Atualizar
+                </button>
+            </div>
+
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-icon critical">
+                        <i class="fas fa-exclamation-triangle"></i>
+                    </div>
+                    <div class="stat-content">
+                        <div class="stat-number" id="criticalCount">0</div>
+                        <div class="stat-label">Críticos</div>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon alert">
+                        <i class="fas fa-exclamation-circle"></i>
+                    </div>
+                    <div class="stat-content">
+                        <div class="stat-number" id="alertCount">0</div>
+                        <div class="stat-label">Alertas</div>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon stable">
+                        <i class="fas fa-check-circle"></i>
+                    </div>
+                    <div class="stat-content">
+                        <div class="stat-number" id="stableCount">0</div>
+                        <div class="stat-label">Estáveis</div>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon total">
+                        <i class="fas fa-users"></i>
+                    </div>
+                    <div class="stat-content">
+                        <div class="stat-number" id="totalCount">0</div>
+                        <div class="stat-label">Total</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="patients-section">
+                <div class="section-header">
+                    <h2>Pacientes Monitorados</h2>
+                    <div class="filters">
+                        <button class="filter-btn active" data-filter="all">Todos</button>
+                        <button class="filter-btn" data-filter="critical">Críticos</button>
+                        <button class="filter-btn" data-filter="alert">Alertas</button>
+                        <button class="filter-btn" data-filter="stable">Estáveis</button>
+                    </div>
+                </div>
+
+                <div class="patients-grid" id="patientsGrid">
+                    <!-- Pacientes serão carregados dinamicamente -->
+                </div>
+            </div>
+        </main>
+
+        <!-- Modal para detalhes do paciente -->
+        <div class="modal" id="patientModal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3 id="modalPatientName">Detalhes do Paciente</h3>
+                    <button class="modal-close" id="modalClose">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                <div class="modal-body" id="modalBody">
+                    <!-- Conteúdo será carregado dinamicamente -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Loading overlay -->
+        <div class="loading-overlay" id="loadingOverlay">
+            <div class="loading-spinner">
+                <i class="fas fa-spinner fa-spin"></i>
+                <p>Carregando dados...</p>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
