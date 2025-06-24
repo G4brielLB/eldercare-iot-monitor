@@ -9,6 +9,7 @@ import json
 import multiprocessing
 from fastapi import Response
 from fastapi.encoders import jsonable_encoder
+import threading
 
 app = FastAPI(title="ElderCare IoT Monitor API", version="1.0.0")
 
@@ -27,14 +28,17 @@ def run_subscriber():
     subscriber = ElderCareSubscriber()
     subscriber.start_listening()
 
+subscriber_thread = None
+
 @app.post("/start_subscriber")
 def start_subscriber():
-    global subscriber_process
-    if subscriber_process is None or not subscriber_process.is_alive():
-        subscriber_process = multiprocessing.Process(target=run_subscriber)
-        subscriber_process.start()
-        return {"status": "Subscriber iniciado em novo processo"}
-    return {"status": "Subscriber já está rodando"}
+    global subscriber_thread
+    if subscriber_thread is None or not subscriber_thread.is_alive():
+        subscriber_thread = threading.Thread(target=run_subscriber, daemon=True)
+        subscriber_thread.start()
+        return {"status": "Subscriber iniciado em background (thread)"}
+    else:
+        return {"status": "Subscriber já está rodando"}
 
 @app.get("/paciente/{patient_id}")
 def read_patient(patient_id: str):

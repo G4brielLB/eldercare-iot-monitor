@@ -112,7 +112,7 @@ async function loadPatients(showFeedback = false) {
         }
         
         const data = await makeRequest('/latest_message_per_patient');
-        patients = processPatientData(data);
+        patients = await processPatientData(data);
         
         updateStats();
         renderPatients();
@@ -148,20 +148,33 @@ async function loadPatientDetails(patientId) {
     }
 }
 
-// Processamento de dados
-function processPatientData(data) {
-    return data.map(item => {
-        const patient = {
+// Adicione uma função auxiliar para buscar dados do paciente
+async function fetchPatientInfo(patientId) {
+    try {
+        return await makeRequest(`/paciente/${patientId}`);
+    } catch {
+        return { nome: `Paciente ${patientId}`, sexo: 'M' }; // fallback
+    }
+}
+
+// Modifique processPatientData para buscar nome/sexo
+async function processPatientData(data) {
+    const patients = [];
+    for (const item of data) {
+        const info = await fetchPatientInfo(item.patient_id);
+        const prefix = info.sex === 'F' ? 'Sra.' : 'Sr.';
+        patients.push({
             id: item.patient_id,
-            name: `Paciente ${item.patient_id}`,
+            name: `${prefix} ${info.name}`,
+            sex: info.sex,
             lastMessage: item,
             timestamp: item.timestamp,
             status: determinePatientStatus(item),
-            metrics: extractMetrics(item.data)
-        };
-        
-        return patient;
-    });
+            metrics: extractMetrics(item.data),
+            info: info // salva info completa para o modal
+        });
+    }
+    return patients;
 }
 
 function determinePatientStatus(message) {
@@ -181,13 +194,39 @@ function determinePatientStatus(message) {
 
 function extractMetrics(data) {
     if (!data) return {};
-    
-    return {
-        heartRate: data.heart_rate || data.bpm || '--',
-        temperature: data.temperature || data.temp || '--',
-        oxygen: data.oxygen_saturation || data.spo2 || '--',
-        stress: data.stress_level || '--'
-    };
+
+    // Para mensagens tipo summary, os dados podem estar em "statistics"
+    let stats = data.statistics || {};
+    // Para emergency, pode estar como lista ou objeto
+    if (Array.isArray(stats)) {
+        // Pega o último valor de cada tipo
+        const metrics = {};
+        stats.forEach(item => {
+            if (item.sensor_type === 'heart_rate') metrics.heartRate = item.value;
+            if (item.sensor_type === 'temperature') metrics.temperature = item.value;
+            if (item.sensor_type === 'oxygen_saturation') metrics.oxygen = item.value;
+            if (item.sensor_type === 'stress_level') metrics.stress = item.value;
+            if (item.sensor_type === 'fall_detection') metrics.fall = item.fall_detected;
+        });
+        return {
+            heartRate: metrics.heartRate ?? '--',
+            temperature: metrics.temperature ?? '--',
+            oxygen: metrics.oxygen ?? '--',
+            stress: metrics.stress ?? '--',
+            fall: metrics.fall !== undefined ? (metrics.fall ? 'Sim' : 'Não') : '--'
+        };
+    } else {
+        // summary: statistics é objeto, emergency: pode estar direto em data
+        return {
+            heartRate: stats.heart_rate?.last_value ?? data.heart_rate ?? '--',
+            temperature: stats.temperature?.last_value ?? data.temperature ?? '--',
+            oxygen: stats.oxygen_saturation?.last_value ?? data.oxygen_saturation ?? '--',
+            stress: stats.stress_level?.last_value ?? data.stress_level ?? '--',
+            fall: stats.fall_detection?.fall_detected !== undefined
+                ? (stats.fall_detection.fall_detected ? 'Sim' : 'Não')
+                : (data.fall_detected !== undefined ? (data.fall_detected ? 'Sim' : 'Não') : '--')
+        };
+    }
 }
 
 // Renderização
@@ -228,11 +267,11 @@ function createPatientCard(patient) {
         alert: 'Alerta',
         stable: 'Estável'
     };
-    
+
     const timeAgo = formatTimeAgo(patient.timestamp);
-    
+
     return `
-        <div class="patient-card ${patient.status}" onclick="openPatientModal('${patient.id}')">
+        <div class="patient-card ${patient.status}" onclick="openPatientModal('${patient.id}', '${patient.name}')">
             <div class="patient-header">
                 <div class="patient-info">
                     <h3>${patient.name}</h3>
@@ -261,7 +300,7 @@ function createPatientCard(patient) {
                     <div class="metric-label">Stress</div>
                 </div>
             </div>
-            
+            <div class="queda${patient.metrics.fall === 'Sim' ? ' sim' : ''}">Queda: ${patient.metrics.fall}</div>
             <div class="patient-footer">
                 <div class="last-message">Última atualização: ${timeAgo}</div>
                 <a href="#" class="view-details" onclick="event.stopPropagation()">Ver detalhes</a>
@@ -288,14 +327,14 @@ function showEmptyState() {
 }
 
 // Modal
-async function openPatientModal(patientId) {
+async function openPatientModal(patientId, patientName) {
     try {
         showLoading();
         
         const { patient, messages } = await loadPatientDetails(patientId);
         const patientData = patients.find(p => p.id === patientId);
-        
-        elements.modalPatientName.textContent = `Paciente ${patientId}`;
+
+        elements.modalPatientName.textContent = `Paciente ${patientName}`;
         elements.modalBody.innerHTML = createPatientDetailsContent(patientData, messages);
         
         elements.patientModal.classList.add('show');
@@ -311,9 +350,16 @@ function closeModal() {
 }
 
 function createPatientDetailsContent(patient, messages) {
-    const recentMessages = messages.slice(-10).reverse();
-    
+    const info = patient.info || {};
+    const sortedMessages = [...messages].sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
     return `
+        <div class="patient-basic-info">
+            <strong>Nome:</strong> ${patient.name}<br>
+            <strong>Sexo:</strong> ${info.sex === 'F' ? 'Feminino' : 'Masculino'}<br>
+            <strong>Idade:</strong> ${info.age || '--'}<br>
+            <strong>ID:</strong> ${patient.id}
+        </div>
+        <hr>
         <div class="patient-details">
             <div class="detail-section">
                 <h4>Status Atual</h4>
@@ -339,6 +385,10 @@ function createPatientDetailsContent(patient, messages) {
                             <span>Nível de Stress:</span>
                             <strong>${patient.metrics.stress}</strong>
                         </div>
+                        <div class="metric-row">
+                            <span>Queda:</span>
+                            <strong>${patient.metrics.fall}</strong>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -346,7 +396,7 @@ function createPatientDetailsContent(patient, messages) {
             <div class="detail-section">
                 <h4>Mensagens Recentes</h4>
                 <div class="messages-list">
-                    ${recentMessages.map(msg => `
+                    ${sortedMessages.slice(0, 10).map(msg => `
                         <div class="message-item ${msg.message_type}">
                             <div class="message-header">
                                 <span class="message-type">${msg.message_type}</span>
@@ -482,7 +532,7 @@ function formatMessageData(data) {
 
 function updateLastUpdateTime() {
     const now = new Date();
-    elements.lastUpdate.textContent = now.toLocaleTimeString('pt-BR');
+    elements.lastUpdate.textContent = now.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
 }
 
 function updateConnectionStatus(connected) {

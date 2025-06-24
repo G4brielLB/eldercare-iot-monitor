@@ -525,6 +525,26 @@ body {
     color: var(--text-primary);
 }
 
+/* Queda */
+.queda {
+    margin-top: 0.5rem;
+    font-size: 1rem;
+    font-weight: 600;
+    background: var(--surface-color);
+    color: var(--text-secondary);
+    padding: 0.25rem 0.75rem;
+    border-radius: 0.5rem;
+    display: inline-block;
+    letter-spacing: 0.02em;
+    border: 1px solid var(--border-color);
+}
+
+.queda.sim {
+    color: var(--danger-color);
+    background: rgba(239, 68, 68, 0.08);
+    border-color: var(--danger-color);
+}
+
 /* Responsive Design */
 @media (max-width: 768px) {
     .container {

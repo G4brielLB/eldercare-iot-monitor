@@ -285,35 +285,39 @@ class EdgeProcessor:
                 if avg_hr > 120:
                     criticals.append('batimento_critico_alto')
                     alerts.append({
-                        'type': 'batimento_critico_alto',
-                        'sensor': 'heart_rate',
-                        'value': avg_hr,
-                        'severity': 'critical'
+                    'type': 'batimento_critico_alto',
+                    'sensor': 'heart_rate',
+                    'value': avg_hr,
+                    'severity': 'critical',
+                    'message': f'Batimento cardíaco muito alto: {avg_hr} bpm'
                     })
                 else:
                     concerns.append('batimento_elevado')
                     alerts.append({
-                        'type': 'batimento_elevado',
-                        'sensor': 'heart_rate',
-                        'value': avg_hr,
-                        'severity': 'concern'
+                    'type': 'batimento_elevado',
+                    'sensor': 'heart_rate',
+                    'value': avg_hr,
+                    'severity': 'concern',
+                    'message': f'Batimento cardíaco elevado: {avg_hr} bpm'
                     })
             elif avg_hr < 65:
                 if avg_hr < 40:
                     criticals.append('batimento_critico_baixo')
                     alerts.append({
-                        'type': 'batimento_critico_baixo',
-                        'sensor': 'heart_rate',
-                        'value': avg_hr,
-                        'severity': 'critical'
+                    'type': 'batimento_critico_baixo',
+                    'sensor': 'heart_rate',
+                    'value': avg_hr,
+                    'severity': 'critical',
+                    'message': f'Batimento cardíaco muito baixo: {avg_hr} bpm'
                     })
                 else: 
                     concerns.append('batimento_baixo')
                     alerts.append({
-                        'type': 'batimento_baixo',
-                        'sensor': 'heart_rate',
-                        'value': avg_hr,
-                        'severity': 'concern'
+                    'type': 'batimento_baixo',
+                    'sensor': 'heart_rate',
+                    'value': avg_hr,
+                    'severity': 'concern',
+                    'message': f'Batimento cardíaco baixo: {avg_hr} bpm'
                     })
         
         if 'stress_level' in stats:
@@ -324,7 +328,8 @@ class EdgeProcessor:
                     'type': 'stress_critico',
                     'sensor': 'stress_level',
                     'value': avg_stress,
-                    'severity': 'critical'
+                    'severity': 'critical',
+                    'message': f'Nível de stress crítico: {avg_stress}%'
                 })
             elif avg_stress > 60:
                 concerns.append('stress_alto')
@@ -332,7 +337,8 @@ class EdgeProcessor:
                     'type': 'stress_alto',
                     'sensor': 'stress_level',
                     'value': avg_stress,
-                    'severity': 'concern'
+                    'severity': 'concern',
+                    'message': f'Nível de stress elevado: {avg_stress}%'
                 })
         
         if 'temperature' in stats:
@@ -341,35 +347,39 @@ class EdgeProcessor:
                 if avg_temp >= 39.0:
                     criticals.append('temperatura_critica_alta')
                     alerts.append({
-                        'type': 'temperatura_critica_alta',
-                        'sensor': 'temperature',
-                        'value': avg_temp,
-                        'severity': 'critical'
+                    'type': 'temperatura_critica_alta',
+                    'sensor': 'temperature',
+                    'value': avg_temp,
+                    'severity': 'critical',
+                    'message': f'Temperatura corporal muito alta: {avg_temp}°C'
                     })
                 else:
                     concerns.append('temperatura_elevada')
                     alerts.append({
-                        'type': 'temperatura_elevada',
-                        'sensor': 'temperature',
-                        'value': avg_temp,
-                        'severity': 'concern'
+                    'type': 'temperatura_elevada',
+                    'sensor': 'temperature',
+                    'value': avg_temp,
+                    'severity': 'concern',
+                    'message': f'Temperatura corporal elevada: {avg_temp}°C'
                     })
             elif avg_temp < 36.0:
                 if avg_temp < 35.0:
                     criticals.append('temperatura_critica_baixa')
                     alerts.append({
-                        'type': 'temperatura_critica_baixa',
-                        'sensor': 'temperature',
-                        'value': avg_temp,
-                        'severity': 'critical'
+                    'type': 'temperatura_critica_baixa',
+                    'sensor': 'temperature',
+                    'value': avg_temp,
+                    'severity': 'critical',
+                    'message': f'Temperatura corporal muito baixa: {avg_temp}°C'
                     })
                 else:
                     concerns.append('temperatura_baixa')
                     alerts.append({
-                        'type': 'temperatura_baixa',
-                        'sensor': 'temperature',
-                        'value': avg_temp,
-                        'severity': 'concern'
+                    'type': 'temperatura_baixa',
+                    'sensor': 'temperature',
+                    'value': avg_temp,
+                    'severity': 'concern',
+                    'message': f'Temperatura corporal baixa: {avg_temp}°C'
                     })
         
         if 'oxygen_saturation' in stats:
@@ -378,27 +388,29 @@ class EdgeProcessor:
                 if avg_oxygen < 90:
                     criticals.append('oxigenacao_critica_baixa')
                     alerts.append({
-                        'type': 'oxigenacao_critica_baixa',
-                        'sensor': 'oxygen_saturation',
-                        'value': avg_oxygen,
-                        'severity': 'critical'
+                    'type': 'oxigenacao_critica_baixa',
+                    'sensor': 'oxygen_saturation',
+                    'value': avg_oxygen,
+                    'severity': 'critical',
+                    'message': f'Oxigenação sanguínea muito baixa: {avg_oxygen}%'
                     })
                 else:
                     concerns.append('oxigenacao_baixa')
                     alerts.append({
-                        'type': 'oxigenacao_baixa',
-                        'sensor': 'oxygen_saturation',
-                        'value': avg_oxygen,
-                        'severity': 'concern'
+                    'type': 'oxigenacao_baixa',
+                    'sensor': 'oxygen_saturation',
+                    'value': avg_oxygen,
+                    'severity': 'concern',
+                    'message': f'Oxigenação sanguínea baixa: {avg_oxygen}%'
                     })
 
         if 'fall_detection' in stats and stats['fall_detection'].get('fall_detected', False):
             criticals.append('queda_detectada')
             alerts.append({
-                'type': 'queda_detectada',
-                'sensor': 'fall_detection',
-                'severity': 'critical',
-                'message': 'Queda detectada!'
+            'type': 'queda_detectada',
+            'sensor': 'fall_detection',
+            'severity': 'critical',
+            'message': 'Queda detectada!'
             })
 
         
