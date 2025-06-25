@@ -13,6 +13,9 @@ class OxygenSensor(BaseSensor):
         elif status == 'critical':
             # Saturação de oxigênio inicial crítica (85-89%)
             self.current_oxygen = random.randint(80, 89)
+        else:
+            # Valor padrão se o status não for reconhecido
+            self.current_oxygen = 98
     
     def generate_data(self):
         """Gera dados de saturação de oxigênio (85-100%)"""
