@@ -111,8 +111,21 @@ async function loadPatients(showFeedback = false) {
             elements.refreshData.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Atualizando...';
         }
         
-        const data = await makeRequest('/latest_message_per_patient');
-        patients = await processPatientData(data);
+        // Carrega dados dos pacientes e status de conectividade em paralelo
+        const [data, statusData] = await Promise.all([
+            makeRequest('/latest_message_per_patient'),
+            makeRequest('/patients_status')
+                .then(result => {
+                    // Verifica se é um objeto de erro (subscriber não rodando)
+                    if (result && result.error) {
+                        return { patients: [] };
+                    }
+                    return result;
+                })
+                .catch(() => ({ patients: [] }))
+        ]);
+        
+        patients = await processPatientData(data, statusData);
         
         updateStats();
         renderPatients();
@@ -123,7 +136,10 @@ async function loadPatients(showFeedback = false) {
         }
     } catch (error) {
         console.error('Erro ao carregar pacientes:', error);
-        if (patients.length === 0) {
+        // Mesmo com erro, tenta renderizar se há dados em cache
+        if (patients.length > 0) {
+            renderPatients();
+        } else {
             showEmptyState();
         }
     } finally {
@@ -157,12 +173,25 @@ async function fetchPatientInfo(patientId) {
     }
 }
 
-// Modifique processPatientData para buscar nome/sexo
-async function processPatientData(data) {
+// Modifique processPatientData para buscar nome/sexo e incluir status de conectividade
+async function processPatientData(data, statusData = { patients: [] }) {
     const patients = [];
+    
+    // Cria um mapa dos status por patient_id para acesso rápido
+    const statusMap = {};
+    statusData.patients.forEach(status => {
+        statusMap[status.patient_id] = status;
+    });
+    
     for (const item of data) {
         const info = await fetchPatientInfo(item.patient_id);
         const prefix = info.sex === 'F' ? 'Sra.' : 'Sr.';
+        const patientStatus = statusMap[item.patient_id] || { 
+            is_online: false, 
+            status: 'UNKNOWN',
+            time_since_last: null 
+        };
+        
         patients.push({
             id: item.patient_id,
             name: `${prefix} ${info.name}`, // Para o card
@@ -172,7 +201,13 @@ async function processPatientData(data) {
             timestamp: item.timestamp,
             status: determinePatientStatus(item),
             metrics: extractMetrics(item.data),
-            info: info // salva info completa para o modal
+            info: info, // salva info completa para o modal
+            connectivity: {
+                is_online: patientStatus.is_online,
+                status: patientStatus.status,
+                time_since_last: patientStatus.time_since_last,
+                last_heartbeat: patientStatus.last_heartbeat
+            }
         });
     }
     return patients;
@@ -195,26 +230,41 @@ function extractMetrics(data) {
 
     // Para mensagens tipo summary, os dados podem estar em "statistics"
     let stats = data.statistics || {};
-    // Para emergency, pode estar como lista ou objeto
+    
+    // Para emergency, statistics é um array com dados individuais
     if (Array.isArray(stats)) {
-        // Pega o último valor de cada tipo
-        const metrics = {};
-        stats.forEach(item => {
-            if (item.sensor_type === 'heart_rate') metrics.heartRate = item.value;
-            if (item.sensor_type === 'temperature') metrics.temperature = item.value;
-            if (item.sensor_type === 'oxygen_saturation') metrics.oxygen = item.value;
-            if (item.sensor_type === 'stress_level') metrics.stress = item.value;
-            if (item.sensor_type === 'fall_detection') metrics.fall = item.fall_detected;
-        });
-        return {
-            heartRate: metrics.heartRate ?? '--',
-            temperature: metrics.temperature ?? '--',
-            oxygen: metrics.oxygen ?? '--',
-            stress: metrics.stress ?? '--',
-            fall: metrics.fall !== undefined ? (metrics.fall ? 'Sim' : 'Não') : '--'
+        // Inicializa métricas com valores padrão
+        const metrics = {
+            heartRate: '--',
+            temperature: '--',
+            oxygen: '--',
+            stress: '--',
+            fall: '--'
         };
+        
+        // Processa cada item do array de statistics
+        stats.forEach(item => {
+            if (item.sensor_type === 'heart_rate' && item.value !== undefined) {
+                metrics.heartRate = item.value;
+            }
+            if (item.sensor_type === 'temperature' && item.value !== undefined) {
+                metrics.temperature = item.value;
+            }
+            if (item.sensor_type === 'oxygen_saturation' && item.value !== undefined) {
+                metrics.oxygen = item.value;
+            }
+            if (item.sensor_type === 'stress_level' && item.value !== undefined) {
+                metrics.stress = item.value;
+            }
+            if (item.sensor_type === 'fall_detection' && item.fall_detected !== undefined) {
+                metrics.fall = item.fall_detected ? 'Sim' : 'Não';
+            }
+        });
+        
+        return metrics;
     } else {
-        // summary: statistics é objeto, emergency: pode estar direto em data
+        // Para summary: statistics é objeto com last_value
+        // Para emergency: pode estar direto em data também
         return {
             heartRate: stats.heart_rate?.last_value ?? data.heart_rate ?? '--',
             temperature: stats.temperature?.last_value ?? data.temperature ?? '--',
@@ -267,13 +317,24 @@ function createPatientCard(patient) {
     };
 
     const timeAgo = formatTimeAgo(patient.timestamp);
+    
+    // Determina o indicador de conectividade
+    const connectivity = patient.connectivity || { is_online: false, status: 'UNKNOWN' };
+    const connectivityIcon = connectivity.is_online ? 
+        '<i class="fas fa-circle" style="color: #4CAF50; font-size: 8px; margin-right: 5px;"></i>' : 
+        '<i class="fas fa-circle" style="color: #f44336; font-size: 8px; margin-right: 5px;"></i>';
+    const connectivityText = connectivity.is_online ? 'Online' : 'Offline';
+    const connectivityClass = connectivity.is_online ? 'online' : 'offline';
 
     return `
-        <div class="patient-card ${patient.status}" onclick="openPatientModal('${patient.id}', '${patient.rawName}')">
+        <div class="patient-card ${patient.status}" onclick="openPatientModal('${patient.id}', '${patient.rawName || patient.name}')">
             <div class="patient-header">
                 <div class="patient-info">
                     <h3>${patient.name}</h3>
                     <div class="patient-id">ID: ${patient.id}</div>
+                    <div class="connectivity-status ${connectivityClass}">
+                        ${connectivityIcon}${connectivityText}
+                    </div>
                 </div>
                 <div class="patient-status ${patient.status}">
                     ${statusText[patient.status]}
@@ -301,7 +362,7 @@ function createPatientCard(patient) {
             <div class="queda${patient.metrics.fall === 'Sim' ? ' sim' : ''}">Queda: ${patient.metrics.fall}</div>
             <div class="patient-footer">
                 <div class="last-message">Última atualização: ${timeAgo}</div>
-                <a href="#" class="view-details" onclick="event.stopPropagation(); openPatientModal('${patient.id}', '${patient.rawName}')">Ver detalhes</a>
+                <a href="#" class="view-details" onclick="event.stopPropagation(); openPatientModal('${patient.id}', '${patient.rawName || patient.name}')">Ver detalhes</a>
             </div>
         </div>
     `;
@@ -349,16 +410,39 @@ function closeModal() {
 
 function createPatientDetailsContent(patient, messages) {
     const info = patient.info || {};
+    const connectivity = patient.connectivity || { is_online: false, status: 'UNKNOWN' };
     const sortedMessages = [...messages].sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
     // Busca alerts do último resumo/emergência (se houver)
     const latestMsg = sortedMessages[0] || {};
     const alerts = Array.isArray(latestMsg.data?.alerts) ? latestMsg.data.alerts : [];
+    
+    // Formata o tempo desde o último heartbeat
+    let connectivityInfo = '';
+    if (connectivity.is_online) {
+        connectivityInfo = `<span style="color: #4CAF50;"><i class="fas fa-circle" style="margin-right: 5px;"></i>Online</span>`;
+    } else {
+        let offlineTime = '';
+        if (connectivity.time_since_last) {
+            const minutes = Math.floor(connectivity.time_since_last / 60);
+            const seconds = connectivity.time_since_last % 60;
+            if (minutes > 0) {
+                offlineTime = ` (há ${minutes}min ${seconds}s)`;
+            } else {
+                offlineTime = ` (há ${seconds}s)`;
+            }
+        } else if (connectivity.status === 'NEVER_CONNECTED') {
+            offlineTime = ' (nunca conectou)';
+        }
+        connectivityInfo = `<span style="color: #f44336;"><i class="fas fa-circle" style="margin-right: 5px;"></i>Offline${offlineTime}</span>`;
+    }
+    
     return `
         <div class="patient-basic-info">
-            <strong>Nome:</strong> ${patient.rawName}<br>
+            <strong>Nome:</strong> ${patient.rawName || patient.name}<br>
             <strong>Sexo:</strong> ${info.sex === 'F' ? 'Feminino' : 'Masculino'}<br>
             <strong>Idade:</strong> ${info.age || '--'}<br>
-            <strong>ID:</strong> ${patient.id}
+            <strong>ID:</strong> ${patient.id}<br>
+            <strong>Conectividade:</strong> ${connectivityInfo}
         </div>
         <hr>
         <div class="patient-details">
@@ -630,13 +714,45 @@ function createMessageCard(msg) {
     const alerts = Array.isArray(data.alerts) ? data.alerts : [];
     
     // Extrai métricas principais
-    const metrics = {
-        heartRate: stats.heart_rate?.last_value ?? stats.heart_rate?.avg ?? '--',
-        temperature: stats.temperature?.last_value ?? stats.temperature?.avg ?? '--',
-        oxygen: stats.oxygen_saturation?.last_value ?? stats.oxygen_saturation?.avg ?? '--',
-        stress: stats.stress_level?.last_value ?? stats.stress_level?.avg ?? '--',
-        fall: stats.fall_detection?.fall_detected ? 'Sim' : 'Não'
-    };
+    let metrics = {};
+    
+    if (Array.isArray(stats)) {
+        // Para mensagens tipo emergency, statistics é um array
+        metrics = {
+            heartRate: '--',
+            temperature: '--',
+            oxygen: '--',
+            stress: '--',
+            fall: '--'
+        };
+        
+        stats.forEach(item => {
+            if (item.sensor_type === 'heart_rate' && item.value !== undefined) {
+                metrics.heartRate = item.value;
+            }
+            if (item.sensor_type === 'temperature' && item.value !== undefined) {
+                metrics.temperature = item.value;
+            }
+            if (item.sensor_type === 'oxygen_saturation' && item.value !== undefined) {
+                metrics.oxygen = item.value;
+            }
+            if (item.sensor_type === 'stress_level' && item.value !== undefined) {
+                metrics.stress = item.value;
+            }
+            if (item.sensor_type === 'fall_detection' && item.fall_detected !== undefined) {
+                metrics.fall = item.fall_detected ? 'Sim' : 'Não';
+            }
+        });
+    } else {
+        // Para mensagens tipo summary, statistics é um objeto
+        metrics = {
+            heartRate: stats.heart_rate?.last_value ?? stats.heart_rate?.avg ?? '--',
+            temperature: stats.temperature?.last_value ?? stats.temperature?.avg ?? '--',
+            oxygen: stats.oxygen_saturation?.last_value ?? stats.oxygen_saturation?.avg ?? '--',
+            stress: stats.stress_level?.last_value ?? stats.stress_level?.avg ?? '--',
+            fall: stats.fall_detection?.fall_detected ? 'Sim' : 'Não'
+        };
+    }
     
     // Determina cor do card baseado no tipo e status
     let cardClass = 'message-card';

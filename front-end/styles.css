@@ -338,6 +338,21 @@ body {
     font-size: 0.875rem;
 }
 
+.connectivity-status {
+    font-size: 0.75rem;
+    margin-top: 0.25rem;
+    display: flex;
+    align-items: center;
+}
+
+.connectivity-status.online {
+    color: #4CAF50;
+}
+
+.connectivity-status.offline {
+    color: #f44336;
+}
+
 .patient-status {
     padding: 0.375rem 0.75rem;
     border-radius: 9999px;

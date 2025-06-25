@@ -22,13 +22,13 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-subscriber_process = None
+subscriber_instance = None
+subscriber_thread = None
 
 def run_subscriber():
-    subscriber = ElderCareSubscriber()
-    subscriber.start_listening()
-
-subscriber_thread = None
+    global subscriber_instance
+    subscriber_instance = ElderCareSubscriber()
+    subscriber_instance.start_listening()
 
 @app.post("/start_subscriber")
 def start_subscriber():
@@ -112,4 +112,52 @@ def latest_message_per_patient():
                 "data": data,
             })
     return result
+
+@app.get("/patients_status")
+def get_patients_status():
+    """
+    Retorna o status online/offline de todos os pacientes
+    """
+    global subscriber_instance
+    
+    if subscriber_instance is None:
+        return {"error": "Subscriber não está rodando. Inicie o subscriber primeiro."}
+    
+    import time
+    current_time = time.time()
+    timeout = getattr(subscriber_instance, 'heartbeat_timeout', 30)  # 30s default
+    
+    patients_status = {}
+    
+    # Verifica status de todos os pacientes que já enviaram heartbeat
+    for patient_id, last_heartbeat in subscriber_instance.online_patients.items():
+        time_since_last = current_time - last_heartbeat
+        is_online = time_since_last <= timeout
+        
+        patients_status[patient_id] = {
+            "patient_id": patient_id,
+            "is_online": is_online,
+            "last_heartbeat": last_heartbeat,
+            "time_since_last": int(time_since_last),
+            "status": "ONLINE" if is_online else "OFFLINE"
+        }
+    
+    # Adiciona pacientes que existem no banco mas nunca enviaram heartbeat
+    all_patients = get_all_patients()
+    for patient in all_patients:
+        if patient.id not in patients_status:
+            patients_status[patient.id] = {
+                "patient_id": patient.id,
+                "is_online": False,
+                "last_heartbeat": None,
+                "time_since_last": None,
+                "status": "NEVER_CONNECTED"
+            }
+    
+    return {
+        "patients": list(patients_status.values()),
+        "total_patients": len(patients_status),
+        "online_count": len([p for p in patients_status.values() if p["is_online"]]),
+        "offline_count": len([p for p in patients_status.values() if not p["is_online"]])
+    }
 
