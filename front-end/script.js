@@ -165,7 +165,8 @@ async function processPatientData(data) {
         const prefix = info.sex === 'F' ? 'Sra.' : 'Sr.';
         patients.push({
             id: item.patient_id,
-            name: `${prefix} ${info.name}`,
+            name: `${prefix} ${info.name}`, // Para o card
+            rawName: info.name,             // Nome puro para detalhes/modal
             sex: info.sex,
             lastMessage: item,
             timestamp: item.timestamp,
@@ -184,12 +185,9 @@ function determinePatientStatus(message) {
     
     const data = message.data || {};
     const alerts = data.alerts || [];
+    const health_status = data.health_status || 'stable';
     
-    if (alerts.length > 0) {
-        return 'alert';
-    }
-    
-    return 'stable';
+    return health_status;
 }
 
 function extractMetrics(data) {
@@ -271,7 +269,7 @@ function createPatientCard(patient) {
     const timeAgo = formatTimeAgo(patient.timestamp);
 
     return `
-        <div class="patient-card ${patient.status}" onclick="openPatientModal('${patient.id}', '${patient.name}')">
+        <div class="patient-card ${patient.status}" onclick="openPatientModal('${patient.id}', '${patient.rawName}')">
             <div class="patient-header">
                 <div class="patient-info">
                     <h3>${patient.name}</h3>
@@ -288,7 +286,7 @@ function createPatientCard(patient) {
                     <div class="metric-label">BPM</div>
                 </div>
                 <div class="metric">
-                    <div class="metric-value">${patient.metrics.temperature}</div>
+                    <div class="metric-value">${patient.metrics.temperature !== '--' ? parseFloat(patient.metrics.temperature).toFixed(1) : patient.metrics.temperature}</div>
                     <div class="metric-label">°C</div>
                 </div>
                 <div class="metric">
@@ -303,7 +301,7 @@ function createPatientCard(patient) {
             <div class="queda${patient.metrics.fall === 'Sim' ? ' sim' : ''}">Queda: ${patient.metrics.fall}</div>
             <div class="patient-footer">
                 <div class="last-message">Última atualização: ${timeAgo}</div>
-                <a href="#" class="view-details" onclick="event.stopPropagation()">Ver detalhes</a>
+                <a href="#" class="view-details" onclick="event.stopPropagation(); openPatientModal('${patient.id}', '${patient.rawName}')">Ver detalhes</a>
             </div>
         </div>
     `;
@@ -352,9 +350,12 @@ function closeModal() {
 function createPatientDetailsContent(patient, messages) {
     const info = patient.info || {};
     const sortedMessages = [...messages].sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+    // Busca alerts do último resumo/emergência (se houver)
+    const latestMsg = sortedMessages[0] || {};
+    const alerts = Array.isArray(latestMsg.data?.alerts) ? latestMsg.data.alerts : [];
     return `
         <div class="patient-basic-info">
-            <strong>Nome:</strong> ${patient.name}<br>
+            <strong>Nome:</strong> ${patient.rawName}<br>
             <strong>Sexo:</strong> ${info.sex === 'F' ? 'Feminino' : 'Masculino'}<br>
             <strong>Idade:</strong> ${info.age || '--'}<br>
             <strong>ID:</strong> ${patient.id}
@@ -375,7 +376,7 @@ function createPatientDetailsContent(patient, messages) {
                         </div>
                         <div class="metric-row">
                             <span>Temperatura:</span>
-                            <strong>${patient.metrics.temperature}°C</strong>
+                            <strong>${patient.metrics.temperature !== '--' ? parseFloat(patient.metrics.temperature).toFixed(1) : patient.metrics.temperature}°C</strong>
                         </div>
                         <div class="metric-row">
                             <span>Saturação de Oxigênio:</span>
@@ -390,23 +391,26 @@ function createPatientDetailsContent(patient, messages) {
                             <strong>${patient.metrics.fall}</strong>
                         </div>
                     </div>
+                    ${alerts.length > 0 ? `
+                    <div class="alerts-list" style="margin-top:1rem;">
+                        <h5 style="color:#111;margin-bottom:0.5rem;">Alertas recentes:</h5>
+                        <ul style="padding-left:1.2rem;">
+                            ${alerts.map(alert => {
+                                let color = '#111';
+                                if (alert.severity === 'concern') color = 'var(--warning-color)';
+                                else color = 'var(--danger-color)';
+                                return `<li style="color:${color}">${alert.message || alert.type}</li>`;
+                            }).join('')}
+                        </ul>
+                    </div>
+                    ` : ''}
                 </div>
             </div>
             
             <div class="detail-section">
                 <h4>Mensagens Recentes</h4>
                 <div class="messages-list">
-                    ${sortedMessages.slice(0, 10).map(msg => `
-                        <div class="message-item ${msg.message_type}">
-                            <div class="message-header">
-                                <span class="message-type">${msg.message_type}</span>
-                                <span class="message-time">${formatDateTime(msg.timestamp)}</span>
-                            </div>
-                            <div class="message-data">
-                                ${formatMessageData(msg.data)}
-                            </div>
-                        </div>
-                    `).join('')}
+                    ${sortedMessages.slice(0, 10).map(msg => createMessageCard(msg)).join('')}
                 </div>
             </div>
         </div>
@@ -474,7 +478,237 @@ function createPatientDetailsContent(patient, messages) {
                 white-space: pre-wrap;
                 word-break: break-word;
             }
+            .alerts-list ul { font-weight: 500; }
+            
+            /* Novos estilos para message cards */
+            .messages-list {
+                display: flex;
+                flex-direction: column;
+                gap: 1rem;
+                max-height: 400px;
+                overflow-y: auto;
+            }
+            
+            .message-card {
+                background: var(--surface-color);
+                border-radius: 0.75rem;
+                padding: 1rem;
+                border: 1px solid var(--border-color);
+                transition: transform 0.2s, box-shadow 0.2s;
+            }
+            
+            .message-card:hover {
+                transform: translateY(-1px);
+                box-shadow: var(--shadow-lg);
+            }
+            
+            .message-card.emergency {
+                border-left: 4px solid var(--danger-color);
+                background: rgba(239, 68, 68, 0.02);
+            }
+            
+            .message-card.critical {
+                border-left: 4px solid var(--danger-color);
+            }
+            
+            .message-card.alert {
+                border-left: 4px solid var(--warning-color);
+            }
+            
+            .message-card.stable {
+                border-left: 4px solid var(--success-color);
+            }
+            
+            .message-card-header {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                margin-bottom: 0.75rem;
+            }
+            
+            .message-type-badge {
+                display: flex;
+                align-items: center;
+                gap: 0.5rem;
+                color: white;
+                padding: 0.25rem 0.75rem;
+                border-radius: 9999px;
+                font-size: 0.75rem;
+                font-weight: 600;
+                text-transform: uppercase;
+                letter-spacing: 0.025em;
+            }
+            
+            .message-time {
+                display: flex;
+                align-items: center;
+                gap: 0.25rem;
+                color: var(--text-secondary);
+                font-size: 0.75rem;
+            }
+            
+            .message-metrics {
+                display: grid;
+                grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+                gap: 0.75rem;
+                margin-bottom: 0.75rem;
+            }
+            
+            .metric-item {
+                display: flex;
+                align-items: center;
+                gap: 0.5rem;
+                padding: 0.5rem;
+                background: var(--background-color);
+                border-radius: 0.5rem;
+                font-size: 0.875rem;
+                font-weight: 500;
+            }
+            
+            .metric-item i {
+                font-size: 1rem;
+            }
+            
+            .message-alerts {
+                border-top: 1px solid var(--border-color);
+                padding-top: 0.75rem;
+            }
+            
+            .alerts-header {
+                display: flex;
+                align-items: center;
+                gap: 0.5rem;
+                color: var(--danger-color);
+                font-size: 0.875rem;
+                font-weight: 600;
+                margin-bottom: 0.5rem;
+            }
+            
+            .alerts-tags {
+                display: flex;
+                flex-wrap: wrap;
+                gap: 0.5rem;
+            }
+            
+            .alert-tag {
+                padding: 0.25rem 0.5rem;
+                border-radius: 0.375rem;
+                font-size: 0.75rem;
+                font-weight: 500;
+                border: 1px solid;
+            }
+            
+            .alert-tag.critical {
+                background: rgba(239, 68, 68, 0.1);
+                color: var(--danger-color);
+                border-color: var(--danger-color);
+            }
+            
+            .alert-tag.concern {
+                background: rgba(245, 158, 11, 0.1);
+                color: var(--warning-color);
+                border-color: var(--warning-color);
+            }
+            
+            .alert-tag.more {
+                background: var(--background-color);
+                color: var(--text-secondary);
+                border-color: var(--border-color);
+            }
         </style>
+    `;
+}
+
+function createMessageCard(msg) {
+    const messageTypeText = {
+        'emergency': 'Emergência',
+        'summary': 'Resumo'
+    };
+    
+    const data = msg.data || {};
+    const stats = data.statistics || {};
+    const alerts = Array.isArray(data.alerts) ? data.alerts : [];
+    
+    // Extrai métricas principais
+    const metrics = {
+        heartRate: stats.heart_rate?.last_value ?? stats.heart_rate?.avg ?? '--',
+        temperature: stats.temperature?.last_value ?? stats.temperature?.avg ?? '--',
+        oxygen: stats.oxygen_saturation?.last_value ?? stats.oxygen_saturation?.avg ?? '--',
+        stress: stats.stress_level?.last_value ?? stats.stress_level?.avg ?? '--',
+        fall: stats.fall_detection?.fall_detected ? 'Sim' : 'Não'
+    };
+    
+    // Determina cor do card baseado no tipo e status
+    let cardClass = 'message-card';
+    let statusColor = '#64748b';
+    
+    if (msg.message_type === 'emergency') {
+        cardClass += ' emergency';
+        statusColor = 'var(--danger-color)';
+    } else if (data.health_status === 'critical') {
+        cardClass += ' critical';
+        statusColor = 'var(--danger-color)';
+    } else if (data.health_status === 'alert') {
+        cardClass += ' alert';
+        statusColor = 'var(--warning-color)';
+    } else {
+        cardClass += ' stable';
+        statusColor = 'var(--success-color)';
+    }
+    
+    return `
+        <div class="${cardClass}">
+            <div class="message-card-header">
+                <div class="message-type-badge" style="background: ${statusColor};">
+                    <i class="fas ${msg.message_type === 'emergency' ? 'fa-exclamation-triangle' : 'fa-chart-line'}"></i>
+                    ${messageTypeText[msg.message_type] || msg.message_type}
+                </div>
+                <div class="message-time">
+                    <i class="fas fa-clock"></i>
+                    ${formatDateTime(msg.timestamp)}
+                </div>
+            </div>
+            
+            <div class="message-metrics">
+                <div class="metric-item">
+                    <i class="fas fa-heartbeat" style="color: #ef4444;"></i>
+                    <span>${metrics.heartRate} bpm</span>
+                </div>
+                <div class="metric-item">
+                    <i class="fas fa-thermometer-half" style="color: #f59e0b;"></i>
+                    <span>${metrics.temperature !== '--' ? parseFloat(metrics.temperature).toFixed(1) : metrics.temperature}°C</span>
+                </div>
+                <div class="metric-item">
+                    <i class="fas fa-lungs" style="color: #3b82f6;"></i>
+                    <span>${metrics.oxygen}%</span>
+                </div>
+                <div class="metric-item">
+                    <i class="fas fa-brain" style="color: #8b5cf6;"></i>
+                    <span>${metrics.stress}%</span>
+                </div>
+                <div class="metric-item">
+                    <i class="fas fa-person-falling" style="color: ${metrics.fall === 'Sim' ? '#ef4444' : '#10b981'};"></i>
+                    <span>${metrics.fall}</span>
+                </div>
+            </div>
+            
+            ${alerts.length > 0 ? `
+                <div class="message-alerts">
+                    <div class="alerts-header">
+                        <i class="fas fa-exclamation-circle"></i>
+                        Alertas (${alerts.length})
+                    </div>
+                    <div class="alerts-tags">
+                        ${alerts.slice(0, 3).map(alert => `
+                            <span class="alert-tag ${alert.severity}">
+                                ${alert.message || alert.type}
+                            </span>
+                        `).join('')}
+                        ${alerts.length > 3 ? `<span class="alert-tag more">+${alerts.length - 3}</span>` : ''}
+                    </div>
+                </div>
+            ` : ''}
+        </div>
     `;
 }
 

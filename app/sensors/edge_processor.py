@@ -74,6 +74,8 @@ class EdgeProcessor:
         if fall_data and fall_data.get('fall_detected'):
             critical_alerts.append({
                 'type': 'FALL_DETECTED',
+                'sensor': 'fall_detection',
+                'severity': 'critical',
                 'message': 'Queda detectada!'
             })
         
@@ -82,7 +84,9 @@ class EdgeProcessor:
         if oxygen_data and oxygen_data.get('value', 100) < 90:
             critical_alerts.append({
                 'type': 'LOW_OXYGEN',
+                'sensor': 'oxygen_saturation',
                 'value': oxygen_data.get('value'),
+                'severity': 'critical',
                 'message': f"Oxigenação crítica: {oxygen_data.get('value')}%"
             })
         
@@ -93,7 +97,9 @@ class EdgeProcessor:
             if temp_value < 35.0 or temp_value > 39.0:
                 critical_alerts.append({
                     'type': 'EXTREME_TEMPERATURE',
+                    'sensor': 'temperature',
                     'value': temp_value,
+                    'severity': 'critical',
                     'message': f"Temperatura extrema: {temp_value}°C"
                 })
         
@@ -103,10 +109,12 @@ class EdgeProcessor:
             heart_rate = heart_data.get('value', 70)
             if heart_rate < 40 or heart_rate > 120:
                 critical_alerts.append({
-                'type': 'CRITICAL_HEART_RATE',
-                'value': heart_rate,
-                'message': f"Batimento cardíaco crítico: {heart_rate} bpm"
-            })
+                    'type': 'CRITICAL_HEART_RATE',
+                    'sensor': 'heart_rate',
+                    'value': heart_rate,
+                    'severity': 'critical',
+                    'message': f"Batimento cardíaco crítico: {heart_rate} bpm"
+                })
         
         # 5. Nível de stress crítico
         stress_data = sensor_data.get('stress_level')
@@ -114,10 +122,12 @@ class EdgeProcessor:
             stress_level = stress_data.get('value', 20)
             if stress_level > 80:
                 critical_alerts.append({
-                'type': 'HIGH_STRESS',
-                'value': stress_level,
-                'message': f"Nível de stress crítico: {stress_level}%"
-            })
+                    'type': 'HIGH_STRESS',
+                    'sensor': 'stress_level',
+                    'value': stress_level,
+                    'severity': 'critical',
+                    'message': f"Nível de stress crítico: {stress_level}%"
+                })
         
         # Se há alertas críticos, cria emergência
         if critical_alerts:
