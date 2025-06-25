@@ -6,7 +6,6 @@ from fastapi.responses import JSONResponse
 from typing import List
 from database.schemas import HealthMessageSchema
 import json
-import multiprocessing
 from fastapi import Response
 from fastapi.encoders import jsonable_encoder
 import threading
