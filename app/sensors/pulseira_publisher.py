@@ -2,7 +2,9 @@ import json
 import time
 from typing import Dict
 import paho.mqtt.client as mqtt
-from config.settings import MQTT_BROKER, MQTT_PORT
+from config.settings import MQTT_PORT
+
+MQTT_BROKER = "localhost"  # Altere para o endereço do seu broker MQTT
 
 class PulseiraPublisher:
     """
