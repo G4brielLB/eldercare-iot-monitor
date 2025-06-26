@@ -746,10 +746,10 @@ function createMessageCard(msg) {
     } else {
         // Para mensagens tipo summary, statistics é um objeto
         metrics = {
-            heartRate: stats.heart_rate?.last_value ?? stats.heart_rate?.avg ?? '--',
-            temperature: stats.temperature?.last_value ?? stats.temperature?.avg ?? '--',
-            oxygen: stats.oxygen_saturation?.last_value ?? stats.oxygen_saturation?.avg ?? '--',
-            stress: stats.stress_level?.last_value ?? stats.stress_level?.avg ?? '--',
+            heartRate: stats.heart_rate?.avg ?? stats.heart_rate?.avg ?? '--',
+            temperature: stats.temperature?.avg ?? stats.temperature?.avg ?? '--',
+            oxygen: stats.oxygen_saturation?.avg ?? stats.oxygen_saturation?.avg ?? '--',
+            stress: stats.stress_level?.avg ?? stats.stress_level?.avg ?? '--',
             fall: stats.fall_detection?.fall_detected ? 'Sim' : 'Não'
         };
     }
