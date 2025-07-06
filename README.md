@@ -6,6 +6,13 @@ Sistema de monitoramento de saúde para idosos utilizando pulseiras inteligentes
 
 O **ElderCare IoT Monitor** é um sistema completo de monitoramento de saúde em tempo real para idosos que simula um ambiente IoT distribuído. O projeto utiliza pulseiras inteligentes virtuais que coletam dados de múltiplos sensores biomédicos e os transmitem via protocolo MQTT para um backend robusto desenvolvido em FastAPI. Os dados são processados, armazenados em SQLite e visualizados através de uma interface web moderna com atualizações em tempo real.
 
+Este projeto foi desenvolvido para a disciplina de **Sistemas Distribuídos** (UFPI, 2025.1), aplicando conceitos como:
+- Arquitetura Publisher-Subscriber
+- Computação na borda (Edge Computing)
+- Comunicação assíncrona baseada em eventos (MQTT)
+- Contêineres Docker
+- Interfaces RESTful e visualização em tempo real
+
 ## Tecnologias Utilizadas
 
 - **Backend**: FastAPI, Python 3.11+
@@ -20,15 +27,19 @@ O **ElderCare IoT Monitor** é um sistema completo de monitoramento de saúde em
 ### Sistema IoT Completo
 - **Pulseiras Inteligentes Simuladas**: Coleta de dados de sensores biomédicos
 - **Processamento Edge**: Análise local com detecção automática de emergências
-- **Comunicação MQTT**: Protocolo IoT robusto com diferentes níveis de QoS
+- **Comunicação MQTT**: Protocolo de comunicação robusto com diferentes níveis de QoS e tópicos por tipo de mensagem: `heartbeat`, `summary`, `emergency`
 - **Detecção de Anomalias**: Identificação automática de situações críticas
 
 ### Sensores Monitorados
-- **Frequência Cardíaca (BPM)**: 60-180 BPM com detecção de arritmias
-- **Saturação de Oxigênio (SpO2)**: 85-100% com alertas automáticos
-- **Temperatura Corporal**: 35-42°C com detecção de febre
-- **Nível de Stress**: 1-10 com análise comportamental
-- **Detecção de Quedas**: Acelerômetro com algoritmos avançados
+- **Batimentos Cardíacos (BPM)**: 25–200 bpm, com detecção de anomalias cardíacas
+- **Oxigenação (SpO₂)**: 70–100%, com alertas automáticos para hipóxia
+- **Temperatura Corporal**: 34–40 °C, com detecção de febre e hipotermia
+- **Nível de Stress**: 0–100%, análise contínua do estado emocional
+- **Detecção de Quedas**: Indicação binária (sim/não)
+
+### Persistência
+- **Armazenamento de dados históricos no SQLite**
+- **Relacionamento 1:N entre pacientes e mensagens**
 
 ### Sistema de Alertas
 - **Emergências Críticas**: Quedas, parada cardíaca, hipóxia severa
@@ -90,67 +101,13 @@ eldercare-iot-monitor/
 └── README.md                         # Documentação
 ```
 
-## Como Executar
-
-### Pré-requisitos
-- Docker e Docker Compose instalados
-- Python 3.11+ (para execução local)
-- Git
-
-### Opção 1: Docker Compose (Recomendado)
-
-1. **Clone e execute o projeto**
-```bash
-git clone <url-do-repositorio>
-cd eldercare-iot-monitor
-docker-compose up --build
-```
-
-2. **Acesse a aplicação**
-- **Interface Web**: http://localhost:8080
-- **API Documentation**: http://localhost:8000/docs
-- **API Endpoints**: http://localhost:8000
-- **MQTT Broker**: localhost:1883
-
-### Opção 2: Execução Local
-
-1. **Instale as dependências**
-```bash
-pip install -r requirements.txt
-```
-
-2. **Configure o banco de dados**
-```bash
-cd app
-python database/setup_database.py
-```
-
-3. **Execute o broker MQTT** (terminal separado)
-```bash
-mosquitto -c config/mosquitto.conf
-```
-
-4. **Execute a API FastAPI** (terminal separado)
-```bash
-python server.py
-```
-
-5. **Execute o frontend** (terminal separado)
-```bash
-cd front-end
-python -m http.server 8080
-```
-
 ## API Endpoints
-
-### Controle do Sistema
-- `POST /start_subscriber` - Inicia o subscriber MQTT
-- `GET /status` - Lista todas as mensagens do sistema
-
-### Consulta de Dados
-- `GET /paciente/{patient_id}` - Dados de um paciente específico
-- `GET /messages/{patient_id}` - Todas as mensagens de um paciente
-- `GET /latest_message_per_patient` - Última mensagem de cada paciente
+- `/start_subscriber`: inicia o subscriber MQTT
+- `/status`: mensagens recentes do sistema
+- `/paciente/{id}`: dados de um paciente
+- `/messages/{id}`: histórico completo
+- `/latest_message_per_patient`: últimas leituras por paciente
+- `/patients_status`: status online/offline
 
 ### Parâmetros da Pulseira
 ```json
@@ -256,21 +213,11 @@ log_dest file /mosquitto/log/mosquitto.log
 ```
 
 ## Considerações de Segurança
-
-### Implementado
 - **CORS**: Configurado para permitir comunicação frontend-backend
 - **Validação**: Schemas Pydantic em todos os endpoints
 - **Error Handling**: Tratamento robusto de exceções
 - **Logging**: Logs detalhados para debugging
 - **Multiprocessing**: Isolamento do subscriber MQTT
-
-### Para Produção
-- **Autenticação JWT**: Implementar tokens de acesso
-- **HTTPS**: Certificados SSL/TLS
-- **Database**: Migrar para PostgreSQL/MySQL
-- **Rate Limiting**: Controle de requisições
-- **Monitoring**: Prometheus + Grafana
-- **Backup**: Rotinas automáticas de backup
 
 ## Licença
 
@@ -284,11 +231,19 @@ Este projeto está licenciado sob a MIT License - veja o arquivo [LICENSE](LICEN
 - **Disciplina**: Sistemas Distribuídos
 - **Instituição**: Universidade Federal do Piauí (UFPI)
 - **Semestre**: 2025.1
+- **Professor**: José Rodrigues Torres Neto
 
 ### Equipe de Desenvolvimento
 
 - **Antônio Enzo Ferreira Do Nascimento**
 - **Gabriel Lopes Bastos**
 - **José Victor Vieira de Oliveira**
+
+---
+
+## 📽️ Demonstração
+
+- [📺 Vídeo no YouTube](https://youtu.be/coO7n6pJm1M)
+- [🔗 Repositório no GitHub](https://github.com/G4brielLB/eldercare-iot-monitor)
 
 ---
